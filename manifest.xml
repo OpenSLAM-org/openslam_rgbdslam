@@ -1,0 +1,30 @@
+<package>
+  <description brief="SLAM on RGBD Data">
+    This package can be used to register the point clouds from RGBD sensors.
+  </description>
+  <author>Felix Endres, Juergen Hess, Nikolas Engelhard</author>
+  <license>GPL v3</license>
+  <review status="unreviewed" notes=""/>
+  <!--url>http://ros.org/wiki/registration</url-->
+  <depend package="tf"/>
+  <depend package="pcl"/>
+  <depend package="eigen"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="rosbag"/>
+  <depend package="pcl_ros"/>
+  <depend package="opencv2"/>
+  <depend package="cv_bridge"/>
+  <depend package="sensor_msgs"/>
+  <depend package="openni_camera"/>
+  <depend package="geometry_msgs"/>
+  <depend package="image_geometry"/>
+  <depend package="hogman_minimal"/>
+  <depend package="visualization_msgs"/>
+  <rosdep name="opengl"/>
+  <rosdep name="qt4"/>
+  <export>
+    <rosdoc config="rosdoc.yaml" />
+  </export>
+</package>
+

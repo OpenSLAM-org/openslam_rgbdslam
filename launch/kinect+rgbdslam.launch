@@ -1,0 +1,7 @@
+<launch>
+  <include file="$(find openni_camera)/launch/openni_node.launch"/>
+  <node pkg="rgbdslam_internal" type="rgbdslam" name="rgbdslam_internal" cwd="node" required="false" output="log" > </node>
+  <!--node pkg="rviz" type="rviz" name="rviz" args="-d $(find rgbdslam_internal)/launch/rviz_config.vcg" respawn="false" output="log" > </node-->
+  <!--node pkg="rxtools" type="rxconsole" name="rxconsole" output="log" > </node-->
+  <!--include file="$(find openni_camera)/launch/kinect_frames.launch"/-->
+</launch>

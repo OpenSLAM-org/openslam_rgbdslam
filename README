@@ -1,0 +1,94 @@
+PREAMBLE
+
+This release of RGBDSLAM succeeds our entry at the ROS 3D contest
+(see http://www.ros.org/wiki/openni/Contests/ROS%203D). 
+
+There have been many changes, mainly
+- Performance improvments w.r.t accuracy and robustness of registration
+- Performance improvments w.r.t computation time
+- A more convenient user interface with internal visualization
+- Convenience features, e.g., saving to pcd/ply file, node deletion and many more
+
+
+INSTALLATION
+
+The following instructions assume you have ROS Diamondback installed in the
+Desktop-Full configuration.  Otherwise please refer to
+http://www.ros.org/wiki/ROS/Installation for instructions how to install ROS.
+RGBDSLAM has been developed and tested on Ubuntu only.
+
+Optionally, you might want to install perception_pcl_addons (debian package:
+ros-diamondback-perception-pcl-addons) which includes pcd_viewer, a viewer for
+the the file format RGBDSLAM uses to store registered point clouds.
+
+Install openni-kinect. On ubuntu use the package manager: 
+  sudo aptitude install ros-diamondback-openni-kinect
+
+Checkout hogman_minimal somewhere in your $ROS_PACKAGE_PATH:
+  svn co http://alufr-ros-pkg.googlecode.com/svn/trunk/freiburg_tools/hogman_minimal
+
+Checkout the RGBDSLAM source code somewhere in your $ROS_PACKAGE_PATH
+
+Compile rgbdslam and dependencies:
+  rosmake --rosdep-install rgbdslam
+
+
+USAGE
+
+To start RGBDSLAM launch
+  roslaunch rgbdslam_internal kinect+rgbdslam.launch
+
+Alternatively you can start the openni nodes and RGBDSLAM separately, e.g.:
+  roslaunch openni_camera openni_node.launch 
+  rosrun rgbdslam rgbdslam
+
+To capture models either press space to start recording a continuous stream
+or press enter to record a single frame. To reduce data redundancy, sequential
+frames from (almost) the same position are not included in the final model.
+The 3D visualization always shows the globally optimized model. Neighbouring
+points are triangulated except at missing values and depth jumps.
+
+
+CODE DOCUMENTATION
+
+Apart from this manual, detailed code documentation can be created using
+rosdoc (rosrun rosdoc rosdoc rgbdslam), which will create a "doc" folder
+in the current directory.
+
+
+SUPPORT
+
+If you have questions regarding installation or usage of RGBDSLAM please refer
+to http://answers.ros.org/questions/?tags=RGBDSLAM
+For further questions, suggestions or to submit patches, please contact
+Felix Endres (endres@informatik.uni-freiburg.de)
+
+EXPERIMENTAL FEATURES
+
+The following features can be activated in CMakeLists.txt, but are highly
+experimental and therefore neither guaranteed to work nor supported in case 
+they do not.
+
+  SIFTGPU:
+  SiftGPU uses (in our case) CUDA, which needs a new NVidia GPU (see
+  http://www.nvidia.com/object/cuda_gpus.html).  For installing the development
+  drivers and the CUDA SDK you can use the following tutorial:
+  http://ubuntuforums.org/showthread.php?t=1625433 (tested on Ubuntu 10.04 x64)
+
+  Additional compiling information can be changed in
+  external/siftgpu/linux/makefile.
+
+  GICP
+  Generalized ICP can be activated for refining the registration. For more
+  information see http://stanford.edu/~avsegal/generalized_icp.html
+
+
+LICENSE INFORMATION
+
+This software is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  The authors allow the users to use and modify the
+source code for their own research. Any commercial application, redistribution,
+etc has to be arranged between users and authors individually.
+
+RGBDSLAM is licenced under LGPL v.3.

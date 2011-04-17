@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="rgbdslam_internal" type="rgbdslam" name="rgbdslam_internal" cwd="node" required="false" output="log" > </node>
+  <!--node pkg="rxtools" type="rxconsole" name="rxconsole" output="log" > </node-->
+  <!--include file="$(find openni_camera)/launch/kinect_frames.launch"/-->
+</launch>
