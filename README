@@ -40,7 +40,7 @@ want to process the point cloud you can save to a ply file and use meshlab
 USAGE
 
 To start RGBDSLAM launch
-  roslaunch rgbdslam_internal kinect+rgbdslam.launch
+  roslaunch rgbdslam kinect+rgbdslam.launch
 
 Alternatively you can start the openni nodes and RGBDSLAM separately, e.g.:
   roslaunch openni_camera openni_node.launch 
