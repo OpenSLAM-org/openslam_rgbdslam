@@ -68,6 +68,14 @@ extern const int global_surf_adjuster_max_iterations;
 extern const float global_min_translation_meter;
 extern const float global_min_rotation_degree; 
 
+///Disabling the 3d display will speed-up the capturing. 
+///Memory requirements seem unaffected
 extern const bool global_use_glwidget;
+///If the registered point clouds should retain the pixel raster
+///This keeps a lot of NaNs in the saved files.
+extern const bool global_preserve_raster_on_save;
+
+///Maximally this many comparisons per node
+///(lower=faster, higher=better loop closing)
 extern const unsigned int global_connectivity;
 #endif

@@ -812,18 +812,18 @@ QList<QMatrix4x4>* GraphManager::getAllPosesAsMatrixList(){
 //TODO: This doesn't work yet (because of method instead of function call?
 #ifndef QT_NO_CONCURRENT
 using namespace QtConcurrent;
-void GraphManager::saveAllClouds(QString filename, bool compact){
-  QFuture<void> f1 = run(this, &GraphManager::saveAllCloudsToFile, filename, compact);
+void GraphManager::saveAllClouds(QString filename){
+  QFuture<void> f1 = run(this, &GraphManager::saveAllCloudsToFile, filename);
   //f1.waitForFinished();
 }
 #else
 // Otherwise just call it without threading
-void GraphManager::saveAllClouds(QString filename, bool compact){
-      saveAllCloudsToFile(filename, compact);
+void GraphManager::saveAllClouds(QString filename){
+      saveAllCloudsToFile(filename);
 }
 #endif
 
-void GraphManager::saveAllCloudsToFile(QString filename, bool compact){
+void GraphManager::saveAllCloudsToFile(QString filename){
     std::clock_t starttime=std::clock();
     pointcloud_type aggregate_cloud; ///will hold all other clouds
     ROS_INFO("Saving all clouds to %s, this may take a while as they need to be transformed to a common coordinate frame.", qPrintable(filename));
@@ -843,7 +843,7 @@ void GraphManager::saveAllCloudsToFile(QString filename, bool compact){
         cam2rgb.setRotation(tf::createQuaternionFromRPY(-1.57,0,-1.57));
         cam2rgb.setOrigin(tf::Point(0,-0.04,0));
         world2cam = cam2rgb*transform;
-        transformAndAppendPointCloud (graph_[i]->pc_col, aggregate_cloud, world2cam, Max_Depth, compact);
+        transformAndAppendPointCloud (graph_[i]->pc_col, aggregate_cloud, world2cam, Max_Depth);
         Q_EMIT setGUIStatus(message.sprintf("Saving to %s: Transformed Node %i/%i", qPrintable(filename), i, (int)optimizer_->vertices().size()));
     }
     aggregate_cloud.header.frame_id = "/openni_camera";
@@ -948,8 +948,9 @@ void GraphManager::setMaxDepth(float max_depth){
 //                              const tf::Transform transformation)
 void transformAndAppendPointCloud (const pointcloud_type &cloud_in, 
                                    pointcloud_type &cloud_to_append_to,
-                                   const tf::Transform transformation, float Max_Depth, bool compact)
+                                   const tf::Transform transformation, float Max_Depth)
 {
+    bool compact = !global_preserve_raster_on_save;
     Eigen::Matrix4f eigen_transform;
     pcl_ros::transformAsMatrix(transformation, eigen_transform);
     unsigned int cloud_to_append_to_original_size = cloud_to_append_to.size();
@@ -977,32 +978,28 @@ void transformAndAppendPointCloud (const pointcloud_type &cloud_in,
     { 
      Eigen::Map<Eigen::Vector3f> p_in (&cloud_in.points[i].x, 3, 1);
      Eigen::Map<Eigen::Vector3f> p_out (&cloud_to_append_to.points[j+cloud_to_append_to_original_size].x, 3, 1);
-     if(compact){
-    	 cloud_to_append_to.points[j+cloud_to_append_to_original_size] = cloud_in.points[i];
-     }
+     if(compact){ cloud_to_append_to.points[j+cloud_to_append_to_original_size] = cloud_in.points[i]; }
      //filter out points with a range greater than the given Parameter or do nothing if negativ
      if(Max_Depth >= 0){
 		 if(pcl::squaredEuclideanDistance(cloud_in.points[i], origin) > Max_Depth*Max_Depth){
 			p_out[0]= numeric_limits<float>::quiet_NaN();
 			p_out[1]= numeric_limits<float>::quiet_NaN();
 			p_out[2]= numeric_limits<float>::quiet_NaN();
-			if(!compact)
-				j++; 
+			if(!compact) j++; 
 			continue;
 		  }
       }
       if (pcl_isnan (cloud_in.points[i].x) || pcl_isnan (cloud_in.points[i].y) || pcl_isnan (cloud_in.points[i].z)){
-		  if(!compact)
-			j++;
+        if(!compact) j++;
     	  continue;
       }
       p_out = rot * p_in + trans;
       j++;
     }
     if(compact){
-		cloud_to_append_to.points.resize(j+cloud_to_append_to_original_size);
-		cloud_to_append_to.width    = 1;
-		cloud_to_append_to.height   = j+cloud_to_append_to_original_size;
+      cloud_to_append_to.points.resize(j+cloud_to_append_to_original_size);
+      cloud_to_append_to.width    = 1;
+      cloud_to_append_to.height   = j+cloud_to_append_to_original_size;
 	}
 }
 

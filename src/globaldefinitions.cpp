@@ -26,7 +26,7 @@ const char* global_topic_image_depth = "/camera/depth/image";
 const char* global_topic_points =      "/camera/rgb/points";
 
 ///Use these keypoints/features
-const char* global_feature_detector_type =  "FAST";
+const char* global_feature_detector_type =  "SURF";
 const char* global_feature_extractor_type = "SURF";
 ///Identify like this in the ros communication network
 const char* global_rosnode_name = "rgbdslam"; const char* global_ros_namespace = "rgbdslam";
@@ -58,6 +58,10 @@ const float global_squared_meshing_threshold = 0.0009;
 ///Disabling the 3d display will speed-up the capturing. 
 ///Memory requirements seem unaffected
 const bool global_use_glwidget = true;
+///If the registered point clouds should retain the pixel raster
+///This keeps a lot of NaNs in the saved files.
+const bool global_preserve_raster_on_save =false;
+
 ///Maximally this many comparisons per node
 ///(lower=faster, higher=better loop closing)
 const unsigned int global_connectivity = 10;

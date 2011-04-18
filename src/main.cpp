@@ -69,7 +69,7 @@ int main(int argc, char** argv)
   QObject::connect(&window, SIGNAL(getOneFrame()), &kinect_listener, SLOT(getOneFrame()));
   QObject::connect(&window, SIGNAL(deleteLastFrame()), &graph_mgr, SLOT(deleteLastFrame()));
   QObject::connect(&window, SIGNAL(sendAllClouds()), &graph_mgr, SLOT(sendAllClouds()));
-  QObject::connect(&window, SIGNAL(saveAllClouds(QString, bool)), &graph_mgr, SLOT(saveAllClouds(QString, bool)));
+  QObject::connect(&window, SIGNAL(saveAllClouds(QString)), &graph_mgr, SLOT(saveAllClouds(QString)));
   QObject::connect(&graph_mgr, SIGNAL(sendFinished()), &window, SLOT(sendFinished()));
   QObject::connect(&graph_mgr, SIGNAL(setGUIInfo(QString)), &window, SLOT(setInfo(QString)));
   QObject::connect(&graph_mgr, SIGNAL(setGUIStatus(QString)), &window, SLOT(setStatus(QString)));

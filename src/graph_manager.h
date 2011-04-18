@@ -76,7 +76,7 @@ class GraphManager : public QObject {
     ///iterate over all Nodes, sending their transform and pointcloud
     void sendAllClouds();
     ///Call saveAllCloudsToFile, if possible as background thread
-    void saveAllClouds(QString filename, bool compact);
+    void saveAllClouds(QString filename);
     ///Throw the last node out, reoptimize
     void deleteLastFrame(); 
     void setMaxDepth(float max_depth);
@@ -113,7 +113,7 @@ class GraphManager : public QObject {
 protected:
 
     ///iterate over all Nodes, transform them to the fixed frame, aggregate and send 
-    void saveAllCloudsToFile(QString filename, bool compact);
+    void saveAllCloudsToFile(QString filename);
     void pointCloud2MeshFile(QString filename, pointcloud_type full_cloud);
     std::vector < cv::DMatch > last_inlier_matches_;
     std::vector < cv::DMatch > last_matches_;
@@ -194,6 +194,6 @@ protected:
 
 geometry_msgs::Point pointInWorldFrame(const Eigen::Vector4f& point3d, Transformation3 transf);
 void transformAndAppendPointCloud (const pointcloud_type &cloud_in, pointcloud_type &cloud_to_append_to,
-                                   const tf::Transform transformation, float Max_Depth, bool compact);
+                                   const tf::Transform transformation, float Max_Depth);
 
 #endif /* GRAPH_MANAGER_H_ */

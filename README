@@ -17,20 +17,24 @@ Desktop-Full configuration.  Otherwise please refer to
 http://www.ros.org/wiki/ROS/Installation for instructions how to install ROS.
 RGBDSLAM has been developed and tested on Ubuntu only.
 
-Optionally, you might want to install perception_pcl_addons (debian package:
-ros-diamondback-perception-pcl-addons) which includes pcd_viewer, a viewer for
-the the file format RGBDSLAM uses to store registered point clouds.
 
 Install openni-kinect. On ubuntu use the package manager: 
-  sudo aptitude install ros-diamondback-openni-kinect
+$ sudo aptitude install ros-diamondback-openni-kinect
 
 Checkout hogman_minimal somewhere in your $ROS_PACKAGE_PATH:
-  svn co http://alufr-ros-pkg.googlecode.com/svn/trunk/freiburg_tools/hogman_minimal
+$ svn co http://alufr-ros-pkg.googlecode.com/svn/trunk/freiburg_tools/hogman_minimal
 
 Checkout the RGBDSLAM source code somewhere in your $ROS_PACKAGE_PATH
+$ svn co https://svn.openslam.org/data/svn/rgbdslam/trunk rgbdslam
 
-Compile rgbdslam and dependencies:
-  rosmake --rosdep-install rgbdslam
+Compile rgbdslam and dependencies: 
+$ rosmake --rosdep-install rgbdslam
+
+Optionally, you might want to install perception_pcl_addons (debian package:
+ros-diamondback-perception-pcl-addons) which includes pcd_viewer, a viewer for
+the file format used by RGBDSLAM to store registered point clouds. If you
+want to process the point cloud you can save to a ply file and use meshlab 
+(debian-package: meshlab).
 
 
 USAGE
@@ -49,19 +53,29 @@ The 3D visualization always shows the globally optimized model. Neighbouring
 points are triangulated except at missing values and depth jumps.
 
 
-CODE DOCUMENTATION
+FURTHER HELP 
 
-Apart from this manual, detailed code documentation can be created using
-rosdoc (rosrun rosdoc rosdoc rgbdslam), which will create a "doc" folder
-in the current directory.
-
-
-SUPPORT
+Here are some known issues:
+1. If you have issues compiling, make sure you removed any older version 
+   of RGBDSLAM from your $ROS_PACKAGE_PATH 
+2. RGBDSLAM needs Diamondback. Make sure that neither your $PATH nor 
+   $ROS_PACKAGE_PATH contains "boxturtle", "cturtle" or "unstable".
+3. If you are located in Germany and get errors loading the saved ply files 
+   into meshlab, try switching to U.S. locale or replace the decimal point with
+   a comma in your .ply file
+4. To speed up compile times consider to use "export ROS_PARALLEL_JOBS=-j<#cpus>"
+   before rosmake, but you should have lots of memory as gcc may take up to
+   2GB for four parallel jobs.
 
 If you have questions regarding installation or usage of RGBDSLAM please refer
 to http://answers.ros.org/questions/?tags=RGBDSLAM
 For further questions, suggestions or to submit patches, please contact
 Felix Endres (endres@informatik.uni-freiburg.de)
+
+Apart from this manual, detailed code documentation can be created using
+rosdoc ("rosrun rosdoc rosdoc rgbdslam"), which will create a "doc" folder
+in your current directory.
+
 
 EXPERIMENTAL FEATURES
 
@@ -91,4 +105,4 @@ FOR A PARTICULAR PURPOSE.  The authors allow the users to use and modify the
 source code for their own research. Any commercial application, redistribution,
 etc has to be arranged between users and authors individually.
 
-RGBDSLAM is licenced under LGPL v.3.
+RGBDSLAM is licenced under GPL v.3.

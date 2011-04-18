@@ -57,8 +57,9 @@ UserInterface::UserInterface() : filename("quicksave.pcd")
     /*menuHelpText = new QString(tr(
                 "<p><b>Menu Commands:</b>"
                 "<ul><li><b>Graph</b></li><ul>"
-                "<li><i>Save Whole Model</i> saves the aggregated cloud to file.</li>"
-                "<li><i>Send Whole Model</i> sends the clouds and their transforms via ROS.</li>"
+                "<li><i>Save Model</i> saves the aggregated cloud to file.</li>"
+                "<li><i>Save Model</i> saves the aggregated cloud to file.</li>"
+                "<li><i>Send Model</i> sends the clouds and their transforms via ROS.</li>"
                 "</ul><li><b>Processing</b></li><ul>"
                 "<li><i>Process</i> toggles the processing.</li>"
                 "<li><i>Reset</i> to clear the collected information.</li>"
@@ -172,9 +173,16 @@ void UserInterface::setInfo(QString message){
     infoLabel->setText(message);
 }
 
+void UserInterface::quickSaveAll() {
+    Q_EMIT saveAllClouds(filename);
+    QString message = tr("Saving Whole Model to ");
+    message.append(filename);
+    statusBar()->showMessage(message);
+    //infoLabel->setText(message);
+}
 void UserInterface::saveAll() {
     filename = QFileDialog::getSaveFileName(this, "Save Point CLoud to File", filename, tr("PCD (*.pcd);;PLY (*ply)"));
-    Q_EMIT saveAllClouds(filename, false);
+    Q_EMIT saveAllClouds(filename);
     QString message = tr("Saving Whole Model");
     statusBar()->showMessage(message);
     //infoLabel->setText(message);
@@ -266,13 +274,17 @@ void UserInterface::createActions() {
     newAct->setIcon(QIcon::fromTheme("document-new"));//doesn't work (for gnome?)
     connect(newAct, SIGNAL(triggered()), this, SLOT(resetCmd()));
 
+    quickSaveAct = new QAction(tr("&Save"), this);
+    quickSaveAct->setShortcuts(QKeySequence::Save);
+    quickSaveAct->setStatusTip(tr("Save all stored point clouds with common coordinate frame to a pcd file"));
+    connect(quickSaveAct, SIGNAL(triggered()), this, SLOT(quickSaveAll()));
 
-    saveAct = new QAction(tr("&Save Whole Model"), this);
-    saveAct->setShortcuts(QKeySequence::Save);
+    saveAct = new QAction(tr("&Save as..."), this);
+    saveAct->setShortcuts(QKeySequence::SaveAs);
     saveAct->setStatusTip(tr("Save all stored point clouds with common coordinate frame"));
     connect(saveAct, SIGNAL(triggered()), this, SLOT(saveAll()));
 
-    sendAct = new QAction(tr("&Send Whole Model"), this);
+    sendAct = new QAction(tr("&Send Model"), this);
     sendAct->setShortcut(QString("Ctrl+M"));
     sendAct->setStatusTip(tr("Send out all stored point clouds with corrected transform"));
     connect(sendAct, SIGNAL(triggered()), this, SLOT(sendAll()));
@@ -342,6 +354,7 @@ void UserInterface::createActions() {
 
 void UserInterface::createMenus() {
     graphMenu = menuBar()->addMenu(tr("&Graph"));
+    graphMenu->addAction(quickSaveAct);
     graphMenu->addAction(saveAct);
     graphMenu->addAction(sendAct);
     graphMenu->addSeparator();

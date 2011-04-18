@@ -61,7 +61,7 @@ Q_SIGNALS:
     void deleteLastFrame();
     void sendAllClouds(); ///< Signifies the sending of the whole model
     ///User wants the current world model to be saved to a pcd-file
-    void saveAllClouds(QString filename, bool compact);
+    void saveAllClouds(QString filename);
     void setMaxDepth(float max_depth);
      
 public Q_SLOTS:
@@ -80,6 +80,7 @@ private Q_SLOTS:
     void sendAll();
     void setMax();
     void saveAll();
+    void quickSaveAll();
     void pause(bool);
     void about();
     void help();
@@ -107,6 +108,7 @@ private:
     QMenu *helpMenu;
     QAction *newAct;
     QAction *saveAct;
+    QAction *quickSaveAct;
     QAction *sendAct;
     QAction *pauseAct;
     QAction *maxAct;
