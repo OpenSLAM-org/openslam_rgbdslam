@@ -60,8 +60,10 @@ Q_SIGNALS:
     ///User wants the last node to be removed from the graph
     void deleteLastFrame();
     void sendAllClouds(); ///< Signifies the sending of the whole model
-    ///User wants the current world model to be saved to a pcd-file
+    ///User wants the current world model to be saved to a pcd-file or ply file
     void saveAllClouds(QString filename);
+    ///User wants the current world model to be saved to one pcd-file per node
+    void saveIndividualClouds(QString file_basename);
     void setMaxDepth(float max_depth);
      
 public Q_SLOTS:
@@ -80,6 +82,7 @@ private Q_SLOTS:
     void sendAll();
     void setMax();
     void saveAll();
+    void saveIndividual();
     void quickSaveAll();
     void pause(bool);
     void about();
@@ -108,6 +111,7 @@ private:
     QMenu *helpMenu;
     QAction *newAct;
     QAction *saveAct;
+    QAction *saveIndiAct;
     QAction *quickSaveAct;
     QAction *sendAct;
     QAction *pauseAct;

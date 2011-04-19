@@ -89,7 +89,6 @@ void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_im
                                      const sensor_msgs::PointCloud2ConstPtr& point_cloud) {
   std::clock_t starttime=std::clock();
   ROS_DEBUG("Received data from kinect");
-
   //Get images into OpenCV format
 	sensor_msgs::CvBridge bridge;
 	cv::Mat depth_float_img = bridge.imgMsgToCv(depth_img_msg); 
@@ -109,6 +108,7 @@ void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_im
   if(getOneFrame_) { //if getOneFrame_ is set, unset it and skip check for  pause
       getOneFrame_ = false;
   } else if(pause_) { //Visualization and nothing else
+    usleep(200000);
     return; 
   }
 

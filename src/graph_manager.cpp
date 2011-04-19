@@ -816,12 +816,52 @@ void GraphManager::saveAllClouds(QString filename){
   QFuture<void> f1 = run(this, &GraphManager::saveAllCloudsToFile, filename);
   //f1.waitForFinished();
 }
+void GraphManager::saveIndividualClouds(QString filename){
+  //    saveIndividualCloudsToFile(filename);
+  QFuture<void> f1 = run(this, &GraphManager::saveIndividualCloudsToFile, filename);
+  //f1.waitForFinished();
+}
 #else
 // Otherwise just call it without threading
 void GraphManager::saveAllClouds(QString filename){
       saveAllCloudsToFile(filename);
 }
+void GraphManager::saveIndividualClouds(QString filename){
+      saveIndividualCloudsToFile(filename);
+}
 #endif
+
+void GraphManager::saveIndividualCloudsToFile(QString file_basename){
+    std::clock_t starttime=std::clock();
+    ROS_INFO("Saving all clouds to %sxxxx.pcd, this may take a while as they need to be transformed to a common coordinate frame.", qPrintable(file_basename));
+    batch_processing_runs_ = true;
+    tf::Transform  world2cam;
+    QString message, filename;
+    for (unsigned int i = 0; i < optimizer_->vertices().size(); ++i) {
+        AIS::PoseGraph3D::Vertex* v = optimizer_->vertex(i);
+        if(!v){ 
+            ROS_ERROR("Nullpointer in graph at position %i!", i);
+            continue;
+        }
+        tf::Transform transform = hogman2TF(v->transformation);
+        tf::Transform cam2rgb;
+        cam2rgb.setRotation(tf::createQuaternionFromRPY(-1.57,0,-1.57));
+        cam2rgb.setOrigin(tf::Point(0,-0.04,0));
+        world2cam = cam2rgb*transform;
+        Eigen::Vector4f sensor_origin(world2cam.getOrigin().x(),world2cam.getOrigin().y(),world2cam.getOrigin().z(),world2cam.getOrigin().w());
+        Eigen::Quaternionf sensor_orientation(world2cam.getRotation().w(),world2cam.getRotation().x(),world2cam.getRotation().y(),world2cam.getRotation().z());
+        graph_[i]->pc_col.sensor_origin_ = sensor_origin;
+        graph_[i]->pc_col.sensor_orientation_ = sensor_orientation;
+        graph_[i]->pc_col.header.frame_id = "/openni_camera";
+        filename.sprintf("%s_%04d.pcd", qPrintable(file_basename), i);
+        Q_EMIT setGUIStatus(message.sprintf("Saving to %s: Transformed Node %i/%i", qPrintable(filename), i, (int)optimizer_->vertices().size()));
+        pcl::io::savePCDFile(qPrintable(filename), graph_[i]->pc_col, true); //Last arg is binary mode. ASCII mode drops color bits
+    }
+    Q_EMIT setGUIStatus("Saved all point clouds");
+    ROS_INFO ("Saved all points clouds to %sxxxx.pcd", qPrintable(file_basename));
+    batch_processing_runs_ = false;
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+}
 
 void GraphManager::saveAllCloudsToFile(QString filename){
     std::clock_t starttime=std::clock();

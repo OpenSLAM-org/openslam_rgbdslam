@@ -181,9 +181,19 @@ void UserInterface::quickSaveAll() {
     //infoLabel->setText(message);
 }
 void UserInterface::saveAll() {
-    filename = QFileDialog::getSaveFileName(this, "Save Point CLoud to File", filename, tr("PCD (*.pcd);;PLY (*ply)"));
+    filename = QFileDialog::getSaveFileName(this, "Save point cloud to file", filename, tr("PCD (*.pcd);;PLY (*ply)"));
     Q_EMIT saveAllClouds(filename);
     QString message = tr("Saving Whole Model");
+    statusBar()->showMessage(message);
+    //infoLabel->setText(message);
+}
+void UserInterface::saveIndividual() {
+    QString tmpfilename(filename);
+    tmpfilename.remove(".pcd", Qt::CaseInsensitive);
+    tmpfilename.remove(".ply", Qt::CaseInsensitive);
+    filename = QFileDialog::getSaveFileName(this, "Save point cloud to one file per node", tmpfilename, tr("PCD (*.pcd)"));
+    Q_EMIT saveIndividualClouds(filename);
+    QString message = tr("Saving Model Node-Wise");
     statusBar()->showMessage(message);
     //infoLabel->setText(message);
 }
@@ -284,6 +294,11 @@ void UserInterface::createActions() {
     saveAct->setStatusTip(tr("Save all stored point clouds with common coordinate frame"));
     connect(saveAct, SIGNAL(triggered()), this, SLOT(saveAll()));
 
+    saveIndiAct = new QAction(tr("&Save Node-Wise..."), this);
+    saveIndiAct->setShortcut(QString("Ctrl+N"));
+    saveIndiAct->setStatusTip(tr("Save stored point clouds in individual files"));
+    connect(saveIndiAct, SIGNAL(triggered()), this, SLOT(saveIndividual()));
+
     sendAct = new QAction(tr("&Send Model"), this);
     sendAct->setShortcut(QString("Ctrl+M"));
     sendAct->setStatusTip(tr("Send out all stored point clouds with corrected transform"));
@@ -356,6 +371,7 @@ void UserInterface::createMenus() {
     graphMenu = menuBar()->addMenu(tr("&Graph"));
     graphMenu->addAction(quickSaveAct);
     graphMenu->addAction(saveAct);
+    graphMenu->addAction(saveIndiAct);
     graphMenu->addAction(sendAct);
     graphMenu->addSeparator();
     graphMenu->addAction(exitAct);
