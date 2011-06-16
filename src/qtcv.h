@@ -27,7 +27,8 @@
 #include <QMainWindow>
 #include <QGridLayout>
 #include "glviewer.h"
-#include "globaldefinitions.h"
+#include "parameter_server.h"
+
 
 class QAction;
 class QActionGroup;
@@ -55,6 +56,8 @@ Q_SIGNALS:
     void reset(); 
     ///User selected to start or resume processing
     void togglePause();
+    ///User selected to start or resume bag recording
+    void toggleBagRecording();
     ///User wants the next frame to be processed
     void getOneFrame();
     ///User wants the last node to be removed from the graph
@@ -85,6 +88,7 @@ private Q_SLOTS:
     void saveIndividual();
     void quickSaveAll();
     void pause(bool);
+    void bagRecording(bool);
     void about();
     void help();
     void lastTransformationMatrix();
@@ -124,7 +128,9 @@ private:
     QAction *delFrameAct;
     QAction *toggleGLViewerAct;
     QAction *toggleStreamAct;
+    QAction *toggleFollowAct;
     QAction *toggleTriangulationAct;
+    QAction *bagRecordingAct;
     QLabel *infoLabel;
     QLabel *infoLabel2;
     QLabel *tmpLabel;

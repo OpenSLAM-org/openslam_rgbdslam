@@ -17,11 +17,11 @@
 
 #ifndef GLVIEWER_H
 #define GLVIEWER_H
-#include "globaldefinitions.h"
 #include <QGLWidget>
 #include <QList>
 #include <QPair>
 #include <QMatrix4x4>
+#include "parameter_server.h"
 
 //!OpenGL based display of the 3d model 
 class GLViewer : public QGLWidget {
@@ -44,6 +44,7 @@ public Q_SLOTS:
     void setXRotation(int angle);
     void setYRotation(int angle);
     void setZRotation(int angle);
+    void toggleFollowMode(bool on);
 
 //Q_SIGNALS:
     //void xRotationChanged(int angle);
@@ -68,9 +69,7 @@ protected:
     void drawEdges();
     ///Draw coil. For debugging only
     void drawCoil();
-    /**Draws a triangle if all coordinates are valid and the points are 
-     * within a certain distance (specified by squared_meshing_threshold
-     * in globaldefinitions.h) from each other */
+    /**Defines a triangle for opengl */
     bool drawTriangle(const point_type& p1, const point_type& p2, 
                       const point_type& p3);
     //bool startTriangleStrip(pointcloud_type const * pc, int x, int y, int w, int h, bool& flip);
@@ -93,6 +92,7 @@ private:
     ///of the camera itself
     void setViewPoint(QMatrix4x4 cam_pose_mat);
     void setClickedPosition(int x, int y);
+    bool follow_mode;
 
 };
 

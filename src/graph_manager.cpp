@@ -39,7 +39,20 @@ QMatrix4x4 hogman2QMatrix(const Transformation3 hogman_trans) {
     _Matrix< 4, 4, double > m = hogman_trans.toMatrix(); //_Matrix< 4, 4, double >
     QMatrix4x4 qmat( static_cast<qreal*>( m[0] )  );
     return qmat;
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+}
+
+Eigen::Matrix4d hogman2Eigen(const Transformation3 hogman_trans) {
+    std::clock_t starttime=std::clock();
+    _Matrix< 4, 4, double > mat = hogman_trans.toMatrix(); //_Matrix< 4, 4, double >
+    QMatrix4x4 m( static_cast<qreal*>( mat[0] )  );
+    Eigen::Matrix4d result;
+    result << m(0,0), m(0,1),m(0,2),m(0,3),
+              m(1,0), m(1,1),m(1,2),m(1,3),
+              m(2,0), m(2,1),m(2,2),m(2,3),
+              m(3,0), m(3,1),m(3,2),m(3,3);
+    return result;
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 tf::Transform hogman2TF(const Transformation3 hogman_trans) {
@@ -61,7 +74,7 @@ tf::Transform hogman2TF(const Transformation3 hogman_trans) {
     result.setRotation(rotation);
     return result;
 
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 
 }
 
@@ -97,7 +110,7 @@ GraphManager::GraphManager(ros::NodeHandle nh, GLViewer* glviewer) :
 
     Max_Depth = -1;
 
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 GraphManager::~GraphManager() {
@@ -114,7 +127,14 @@ void GraphManager::drawFeatureFlow(cv::Mat& canvas, cv::Scalar line_color,
     const double pi_fourth = 3.14159265358979323846 / 4.0;
     const int line_thickness = 1;
     const int circle_radius = 6;
-    if(graph_.size() < 2)return;// || last_matching_node_ < 0) return; //feature flow is only available between at least two nodes
+    if(graph_.size() == 0) {
+      ROS_WARN("Feature Flow for empty graph requested. Bug?");
+      return;
+    } else if(graph_.size() == 1) {//feature flow is only available between at least two nodes
+      Node* newernode = graph_[graph_.size()-1];
+      cv::drawKeypoints(canvas, newernode->feature_locations_2d_, canvas, cv::Scalar(255), 5);
+      return;
+    } 
 
     Node* earliernode = graph_[graph_.size()-2];//graph_.size()-2; //compare current to previous
     Node* newernode = graph_[graph_.size()-1];
@@ -126,7 +146,7 @@ void GraphManager::drawFeatureFlow(cv::Mat& canvas, cv::Scalar line_color,
     //    cv::circle(canvas, p, circle_radius, circle_color, line_thickness, 8);
     //}
     cv::Mat tmpimage = cv::Mat::zeros(canvas.rows, canvas.cols, CV_8UC1);
-    cv::drawKeypoints(tmpimage, newernode->feature_locations_2d_, tmpimage, cv::Scalar(90), 5);
+    cv::drawKeypoints(canvas, newernode->feature_locations_2d_, tmpimage, cv::Scalar(155), 5);
     canvas+=tmpimage;
     for(unsigned int mtch = 0; mtch < last_inlier_matches_.size(); mtch++) {
         cv::Point2f p,q; //TODO: Use sub-pixel-accuracy
@@ -151,7 +171,7 @@ void GraphManager::drawFeatureFlow(cv::Mat& canvas, cv::Scalar line_color,
             cv::circle(canvas, p, circle_radius-2, circle_color, line_thickness, 8);
         }
     }
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 
@@ -282,7 +302,7 @@ bool GraphManager::addNode(Node* new_node) {
         }
     }
     //Eigen::Matrix4f ransac_trafo, final_trafo;
-    std::vector<int> vertices_to_comp = getPotentialEdgeTargets(new_node, global_connectivity); //vernetzungsgrad
+    std::vector<int> vertices_to_comp = getPotentialEdgeTargets(new_node, ParameterServer::instance()->get<int>("connectivity")); //vernetzungsgrad
     QList<const Node* > nodes_to_comp;//only necessary for parallel computation
     for (int id_of_id = (int)vertices_to_comp.size()-1; id_of_id >=0;id_of_id--){ 
 
@@ -307,9 +327,9 @@ bool GraphManager::addNode(Node* new_node) {
         if(mr.edge.id1 >= 0){
             if (addEdgeToHogman(mr.edge, isBigTrafo(mr.edge.mean))) { //TODO: result isBigTrafo is not considered
                 ROS_INFO("Added Edge between %i and %i. Inliers: %i",mr.edge.id1,mr.edge.id2,(int) mr.inlier_matches.size());
-                last_matching_node_ = mr.edge.id1;
-                last_inlier_matches_ = mr.inlier_matches;
-                last_matches_ = mr.all_matches;
+                //last_matching_node_ = mr.edge.id1;
+                //last_inlier_matches_ = mr.inlier_matches;
+                //last_matches_ = mr.all_matches;
             }
         }
     }
@@ -340,7 +360,7 @@ bool GraphManager::addNode(Node* new_node) {
                                      (int)optimizer_->vertices().size(), (int)optimizer_->edges().size(),
                                      (std::clock()-starttime) / (double)CLOCKS_PER_SEC, (int)last_inlier_matches_.size(),
                                      optimizer_->chi2()));
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
     return (optimizer_->edges().size() > num_edges_before);
 }
 
@@ -369,7 +389,8 @@ bool GraphManager::isBigTrafo(const Eigen::Matrix4f& t){
     double max_angle = max(roll,max(pitch,yaw));
 
     // at least 10cm or 5deg
-    return (dist > global_min_translation_meter || max_angle > global_min_rotation_degree);
+    return (dist > ParameterServer::instance()->get<double>("min_translation_meter")
+    		|| max_angle > ParameterServer::instance()->get<int>("min_rotation_degree"));
 }
 
 bool GraphManager::isBigTrafo(const Transformation3& t){
@@ -379,7 +400,8 @@ bool GraphManager::isBigTrafo(const Transformation3& t){
     ROS_INFO("Rotation:% 4.2f, Distance: % 4.3fm", angle_around_axis, dist);
     infostring.sprintf("Rotation:% 4.2f, Distance: % 4.3fm", angle_around_axis, dist);
     Q_EMIT setGUIInfo2(infostring);
-    return (dist > global_min_translation_meter || angle_around_axis > global_min_rotation_degree);
+    return (dist > ParameterServer::instance()->get<double>("min_translation_meter")
+    		|| angle_around_axis > ParameterServer::instance()->get<int>("min_rotation_degree"));
 }
 void GraphManager::visualizeFeatureFlow3D(unsigned int marker_id,
                                           bool draw_outlier) const{
@@ -471,7 +493,7 @@ void GraphManager::visualizeFeatureFlow3D(unsigned int marker_id,
         ransac_marker_pub_.publish(marker_lines);
         ROS_DEBUG_STREAM("Published  " << marker_lines.points.size()/2 << " lines");
     }
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 //do spurious type conversions
@@ -497,7 +519,7 @@ QList<QPair<int, int> >* GraphManager::getGraphEdges() const {
         v2 = static_cast<AISNavigation::PoseGraph3D::Vertex*>((*edge_iter)->to());
         edge_list->append( qMakePair(v1->id(), v2->id()));
     }
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
     return edge_list;
 }
 void GraphManager::visualizeGraphEdges() const {
@@ -549,7 +571,7 @@ void GraphManager::visualizeGraphEdges() const {
         ROS_INFO("published %d graph edges", counter);
     }
 
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GraphManager::visualizeGraphNodes() const {
@@ -646,7 +668,7 @@ void GraphManager::visualizeGraphNodes() const {
         ROS_INFO("published %d graph nodes", counter);
     }
 
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 bool GraphManager::addEdgeToHogman(AIS::LoadedEdge3D edge, bool largeEdge) {
@@ -675,7 +697,7 @@ bool GraphManager::addEdgeToHogman(AIS::LoadedEdge3D edge, bool largeEdge) {
         assert(v2);
     }
     optimizer_->addEdge(v1, v2, edge.mean, edge.informationMatrix);
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 
     return true;
 
@@ -703,7 +725,7 @@ void GraphManager::optimizeGraph(){
         publishCorrectedTransforms();
         last_batch_update_ = std::clock();
     }*/
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GraphManager::broadcastTransform(const ros::TimerEvent& ){
@@ -753,7 +775,7 @@ void GraphManager::publishCorrectedTransforms(){
 
     if (transform_pub_.getNumSubscribers() > 0)
         transform_pub_.publish(msg);
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }*/
 
 void GraphManager::reset(){
@@ -804,7 +826,7 @@ QList<QMatrix4x4>* GraphManager::getAllPosesAsMatrixList(){
             ROS_ERROR("Nullpointer in graph at position %i!", i);
         }
     }
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
     return result;
 }
 
@@ -860,7 +882,7 @@ void GraphManager::saveIndividualCloudsToFile(QString file_basename){
     Q_EMIT setGUIStatus("Saved all point clouds");
     ROS_INFO ("Saved all points clouds to %sxxxx.pcd", qPrintable(file_basename));
     batch_processing_runs_ = false;
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GraphManager::saveAllCloudsToFile(QString filename){
@@ -903,7 +925,7 @@ void GraphManager::saveAllCloudsToFile(QString filename){
         ROS_INFO("Aggregate pointcloud sent");
     }
     batch_processing_runs_ = false;
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GraphManager::pointCloud2MeshFile(QString filename, pointcloud_type full_cloud){
@@ -942,6 +964,7 @@ void GraphManager::sendAllClouds(){
     tf::Transform  world2cam;
     //fill message
     //rgbdslam::CloudTransforms msg;
+    ros::Rate r(5);
     for (unsigned int i = 0; i < optimizer_->vertices().size(); ++i) {
         AIS::PoseGraph3D::Vertex* v = optimizer_->vertex(i);
         if(!v){ 
@@ -961,11 +984,12 @@ void GraphManager::sendAllClouds(){
                           "/openni_camera", "/batch_transform"));
         ROS_DEBUG("Sending out cloud %i", i);
         graph_[i]->publish("/batch_transform", time_of_transform);
+        r.sleep();
     }
 
     batch_processing_runs_ = false;
     Q_EMIT sendFinished();
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GraphManager::setMaxDepth(float max_depth){
@@ -990,7 +1014,7 @@ void transformAndAppendPointCloud (const pointcloud_type &cloud_in,
                                    pointcloud_type &cloud_to_append_to,
                                    const tf::Transform transformation, float Max_Depth)
 {
-    bool compact = !global_preserve_raster_on_save;
+    bool compact = !ParameterServer::instance()->get<bool>("preserve_raster_on_save");
     Eigen::Matrix4f eigen_transform;
     pcl_ros::transformAsMatrix(transformation, eigen_transform);
     unsigned int cloud_to_append_to_original_size = cloud_to_append_to.size();
@@ -1043,4 +1067,26 @@ void transformAndAppendPointCloud (const pointcloud_type &cloud_in,
 	}
 }
 
+bool GraphManager::overlappingViews(AISNavigation::LoadedEdge3D edge){
+    //opening angles
+   double alpha = 57.0/180.0*M_PI;
+   double beta = 47.0/180.0*M_PI; 
+   //assumes robot coordinate system (x is front, y is left, z is up)
+   Eigen::Matrix<double, 4,3> cam1;
+   cam1 <<  1.0, std::tan(alpha),  std::tan(beta),//upper left
+                                       1.0, -std::tan(alpha), std::tan(beta),//upper right
+                                       1.0, std::tan(alpha), -std::tan(beta),//lower left
+                                       1.0, -std::tan(alpha),-std::tan(beta);//lower right
+   //cam2 = hogman2Eigen(edge.mean) *
+   return false;
 
+}
+bool triangleRayIntersection(Eigen::Vector3d triangle1,Eigen::Vector3d triangle2, 
+                             Eigen::Vector3d ray_origin, Eigen::Vector3d ray){
+    Eigen::Matrix3d m;
+    m.col(2) = -ray;
+    m.col(0) = triangle1;
+    m.col(1) = triangle2;
+    Eigen::Vector3d lengths = m.inverse() * ray_origin;
+    return (lengths(0) < 0 && lengths(1) > 0 && lengths(2) > 0 );
+}

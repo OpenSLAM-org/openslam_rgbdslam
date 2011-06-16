@@ -27,7 +27,8 @@
 #include <QObject>
 #include "qtcv.h"
 #include <Eigen/Core>
-#include "globaldefinitions.h"
+
+#include "parameter_server.h"
 
 //TODO:
 //try ASIFT
@@ -42,7 +43,9 @@
 int main(int argc, char** argv)
 {
   QApplication application(argc,argv);
-  QtROS qtRos(argc, argv,global_rosnode_name); //Thread object, to run the ros event processing loop in parallel to the qt loop
+  //create thread object, to run the ros event processing loop in parallel to the qt loop
+  QtROS qtRos(argc, argv, "rgbdslam"); //ros node name
+
   //If one thread receives a exit signal from the user, signal the other thread to quit too
   QObject::connect(&application, SIGNAL(aboutToQuit()), &qtRos, SLOT(quitNow()));
   QObject::connect(&qtRos, SIGNAL(rosQuits()), &application, SLOT(quit()));
@@ -51,12 +54,13 @@ int main(int argc, char** argv)
   window.show();
   GraphManager graph_mgr(qtRos.getNodeHandle(), window.getGLViewer());
   //Instantiate the kinect image listener
+  ParameterServer* params = ParameterServer::instance();
   OpenNIListener kinect_listener(qtRos.getNodeHandle(), &graph_mgr,
-                                 global_topic_image_mono,  
-                                 global_topic_image_depth, 
-                                 global_topic_points,
-                                 global_feature_extractor_type, //FAST is really fast but the Keypoints are not robust
-                                 global_feature_detector_type);
+								 params->get<std::string>("topic_image_mono").c_str(),
+								 params->get<std::string>("topic_image_depth").c_str(),
+								 params->get<std::string>("topic_points").c_str(),
+								 params->get<std::string>("feature_extractor_type").c_str(),
+								 params->get<std::string>("feature_detector_type").c_str());
 
   //COMMUNICATION BETWEEN COMPONENTS
   //Route every processed image to the GUI
@@ -66,6 +70,7 @@ int main(int argc, char** argv)
   QObject::connect(&graph_mgr, SIGNAL(newTransformationMatrix(QString)), &window, SLOT(setTransformation(QString)));
   QObject::connect(&window, SIGNAL(reset()), &graph_mgr, SLOT(reset()));
   QObject::connect(&window, SIGNAL(togglePause()), &kinect_listener, SLOT(togglePause()));
+  QObject::connect(&window, SIGNAL(toggleBagRecording()), &kinect_listener, SLOT(toggleBagRecording()));
   QObject::connect(&window, SIGNAL(getOneFrame()), &kinect_listener, SLOT(getOneFrame()));
   QObject::connect(&window, SIGNAL(deleteLastFrame()), &graph_mgr, SLOT(deleteLastFrame()));
   QObject::connect(&window, SIGNAL(sendAllClouds()), &graph_mgr, SLOT(sendAllClouds()));
@@ -74,7 +79,7 @@ int main(int argc, char** argv)
   QObject::connect(&graph_mgr, SIGNAL(sendFinished()), &window, SLOT(sendFinished()));
   QObject::connect(&graph_mgr, SIGNAL(setGUIInfo(QString)), &window, SLOT(setInfo(QString)));
   QObject::connect(&graph_mgr, SIGNAL(setGUIStatus(QString)), &window, SLOT(setStatus(QString)));
-  if(global_use_glwidget){
+  if(params->get<bool>("use_glwidget")){
     QObject::connect(&graph_mgr, SIGNAL(setPointCloud(pointcloud_type const *, QMatrix4x4)), &window, SLOT(addPointCloud(pointcloud_type const *, QMatrix4x4)));//, Qt::DirectConnection);
     QObject::connect(&graph_mgr, SIGNAL(updateTransforms(QList<QMatrix4x4>*)), &window, SLOT(updateTransforms(QList<QMatrix4x4>*)));
     QObject::connect(&graph_mgr, SIGNAL(setGraphEdges(QList<QPair<int, int> >*)), &window, SLOT(setGraphEdges(QList<QPair<int, int> >*)));

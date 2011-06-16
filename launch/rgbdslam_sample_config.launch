@@ -1,0 +1,34 @@
+<launch>
+  <!-- this demonstrates the parameters that can be set via the parameter server and their default values -->
+  <node pkg="rgbdslam_dev" type="rgbdslam" name="rgbdslam" cwd="node" required="false" output="log" > 
+  	<param name="config/topic_image_mono" value="/camera/rgb/image_mono"/>
+  	<param name="config/topic_image_depth" value="/camera/depth/image"/>
+  	<param name="config/topic_points" value="/camera/rgb/points"/>
+  	<param name="config/feature_detector_type" value="SURF"/>
+  	<param name="config/feature_extractor_type" value="SURF"/>
+  	<param name="config/start_paused" value="false"/>
+  	<param name="config/subscriber_queue_size" value="20"/>
+  	<param name="config/publisher_queue_size" value="1"/>
+  	<param name="config/topic_reframed_cloud" value="reframed_cloud"/>
+  	
+  	<param name="config/topic_transformed_cloud" value="transformed_cloud"/>
+  	<param name="config/topic_first_cloud" value="reference_cloud"/>
+  	<param name="config/topic_sampled_cloud" value="sampled_cloud"/>
+  	<param name="config/adjuster_max_keypoints" value="1800"/>
+  	<param name="config/adjuster_min_keypoints" value="800"/>
+  	<param name="config/fast_adjuster_max_iterations" value="10"/>
+  	<param name="config/surf_adjuster_max_iterations" value="5"/>
+  	<param name="config/min_translation_meter" value="0.1"/>
+  	<param name="config/min_rotation_degree" value="5"/>
+  	<param name="config/min_time_reported" value="0.01"/>
+  	
+  	<param name="config/squared_meshing_threshold" value="0.0009"/>
+  	<param name="config/use_glwidget" value="true"/>
+  	<param name="config/preserve_raster_on_save" value="false"/>
+  	<param name="config/connectivity" value="10"/>
+  	<param name="config/drop_async_frames" value="true"/>
+  	<param name="config/min_matches" value="100"/>
+  	<param name="config/max_dist_for_inliers" value="0.03"/>
+  </node>
+  <!--include file="$(find openni_camera)/launch/kinect_frames.launch"/-->
+</launch>

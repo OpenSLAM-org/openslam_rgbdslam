@@ -90,7 +90,7 @@ UserInterface::UserInterface() : filename("quicksave.pcd")
     //transform_label = new QLabel(tr("<i>Waiting for transformation matrix...</i>"));
     //transform_label->setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
     //transform_label->setAlignment(Qt::AlignCenter);
-    if(global_use_glwidget) glviewer = new GLViewer(this);//displays the cloud in 3d
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer = new GLViewer(this);//displays the cloud in 3d
 
     //QFont typewriter_font;
     //typewriter_font.setStyleHint(QFont::TypeWriter);
@@ -104,7 +104,7 @@ UserInterface::UserInterface() : filename("quicksave.pcd")
     //gridlayout->addWidget(infoLabel, 0,0);
     //gridlayout->addWidget(transform_label, 0,0,1,0); //with rowspan
     //gridlayout->addWidget(transform_label, 0,0);
-    if(global_use_glwidget) gridlayout->addWidget(glviewer, 0,0,1,0);
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) gridlayout->addWidget(glviewer, 0,0,1,0);
     gridlayout->addWidget(visual_image_label, 1,0);
     gridlayout->addWidget(depth_image_label, 1,1);
     gridlayout->addWidget(feature_flow_image_label, 1,2);
@@ -157,7 +157,7 @@ void UserInterface::setTransformation(QString transf){
 
 void UserInterface::resetCmd() {
     Q_EMIT reset();
-    if(global_use_glwidget) glviewer->reset();
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->reset();
     QString message = tr("Graph Reset");
     statusBar()->showMessage(message);
     infoLabel->setText("A fresh new graph is waiting");
@@ -181,7 +181,7 @@ void UserInterface::quickSaveAll() {
     //infoLabel->setText(message);
 }
 void UserInterface::saveAll() {
-    filename = QFileDialog::getSaveFileName(this, "Save point cloud to file", filename, tr("PCD (*.pcd);;PLY (*ply)"));
+    filename = QFileDialog::getSaveFileName(this, "Save Point CLoud to File", filename, tr("PCD (*.pcd);;PLY (*ply)"));
     Q_EMIT saveAllClouds(filename);
     QString message = tr("Saving Whole Model");
     statusBar()->showMessage(message);
@@ -231,6 +231,18 @@ void UserInterface::deleteLastFrameCmd() {
     statusBar()->showMessage(message);
     //infoLabel->setText(message);
 }
+void UserInterface::bagRecording(bool pause_on) {
+    Q_EMIT toggleBagRecording();
+    if(pause_on) {
+        QString message = tr("Recording Bagfile.");
+        statusBar()->showMessage(message);
+        //infoLabel->setText(message);
+    } else {
+        QString message = tr("Stopped Recording.");
+        statusBar()->showMessage(message);
+        //infoLabel->setText(message);
+    }
+}
 void UserInterface::pause(bool pause_on) {
     Q_EMIT togglePause();
     if(pause_on) {
@@ -255,7 +267,7 @@ void UserInterface::lastTransformationMatrix() {
 }
 
 void UserInterface::toggleTriangulation() {
-    if(global_use_glwidget) glviewer->toggleTriangulation();
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->toggleTriangulation();
 }
 
 void UserInterface::set2DStream(bool is_on) {
@@ -271,7 +283,7 @@ void UserInterface::set2DStream(bool is_on) {
 }
 
 void UserInterface::set3DDisplay(bool is_on) {
-    if(!global_use_glwidget) return;
+    if(!ParameterServer::instance()->get<bool>("use_glwidget")) return;
     if(is_on){ glviewer->show(); } 
     else { glviewer->hide(); } 
 }
@@ -307,10 +319,18 @@ void UserInterface::createActions() {
     pauseAct = new QAction(tr("&Process"), this);
     pauseAct->setShortcut(QString(" "));
     pauseAct->setCheckable(true);
-    pauseAct->setChecked(!global_start_paused);
+    pauseAct->setChecked(!ParameterServer::instance()->get<bool>("start_paused"));
     pauseAct->setStatusTip(tr("Start/stop processing of frames"));
     pauseAct->setIcon(QIcon::fromTheme("media-playback-start"));//doesn't work (for gnome?)
     connect(pauseAct, SIGNAL(toggled(bool)), this, SLOT(pause(bool)));
+
+    bagRecordingAct = new QAction(tr("&Bagfile Recording"), this);
+    bagRecordingAct->setShortcut(QString("R"));
+    bagRecordingAct->setCheckable(true);
+    bagRecordingAct->setChecked(false);
+    bagRecordingAct->setStatusTip(tr("Start/stop recording of frames to bagfile"));
+    bagRecordingAct->setIcon(QIcon::fromTheme("media-playback-start"));//doesn't work (for gnome?)
+    connect(bagRecordingAct, SIGNAL(toggled(bool)), this, SLOT(bagRecording(bool)));
 
     maxAct = new QAction(tr("Set Maximum &Depth"), this);
     maxAct->setShortcut(QString("Ctrl+D"));
@@ -354,6 +374,13 @@ void UserInterface::createActions() {
     toggleGLViewerAct->setStatusTip(tr("Turn off the OpenGL Display of the Accumulated PointClouds"));
     connect(toggleGLViewerAct, SIGNAL(toggled(bool)), this, SLOT(set3DDisplay(bool)));
 
+    toggleFollowAct = new QAction(tr("&Follow Camera"), this);
+    toggleFollowAct->setShortcut(QString("F"));
+    toggleFollowAct->setCheckable(true);
+    toggleFollowAct->setChecked(true);
+    toggleFollowAct->setStatusTip(tr("Always use viewpoint of last frame (except zoom)"));
+    connect(toggleFollowAct, SIGNAL(toggled(bool)), glviewer, SLOT(toggleFollowMode(bool)));
+
     toggleTriangulationAct = new QAction(tr("&Toggle Rendering"), this);
     toggleTriangulationAct->setShortcut(QString("T"));
     toggleTriangulationAct->setStatusTip(tr("Switch between surface, wireframe and point cloud"));
@@ -379,6 +406,7 @@ void UserInterface::createMenus() {
     actionMenu = menuBar()->addMenu(tr("&Processing"));
     actionMenu->addAction(newAct);
     actionMenu->addAction(pauseAct);
+    actionMenu->addAction(bagRecordingAct);
     actionMenu->addAction(maxAct);
     actionMenu->addAction(oneFrameAct);
     actionMenu->addAction(delFrameAct);
@@ -387,6 +415,7 @@ void UserInterface::createMenus() {
     viewMenu->addAction(toggleGLViewerAct);
     viewMenu->addAction(toggleStreamAct);
     viewMenu->addAction(toggleTriangulationAct);
+    viewMenu->addAction(toggleFollowAct);
 
     helpMenu = menuBar()->addMenu(tr("&Help"));
     helpMenu->addAction(transfAct);
@@ -394,14 +423,14 @@ void UserInterface::createMenus() {
     helpMenu->addAction(aboutAct);
 }
 void UserInterface::addPointCloud(pointcloud_type const * pc, QMatrix4x4 transform){
-    if(global_use_glwidget) glviewer->addPointCloud(pc, transform);
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->addPointCloud(pc, transform);
 }
 void UserInterface::deleteLastNode(){
-    if(global_use_glwidget) glviewer->deleteLastNode();
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->deleteLastNode();
 }
 void UserInterface::setGraphEdges(QList<QPair<int, int> >* list){
-    if(global_use_glwidget) glviewer->setEdges(list);
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->setEdges(list);
 }
 void UserInterface::updateTransforms(QList<QMatrix4x4>* transforms){
-    if(global_use_glwidget) glviewer->updateTransforms(transforms);
+    if(ParameterServer::instance()->get<bool>("use_glwidget")) glviewer->updateTransforms(transforms);
 }

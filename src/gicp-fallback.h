@@ -33,7 +33,7 @@ typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud_RGB;
 
 
-void saveCloud(const char* filename, const PointCloud_RGB& pc, const unsigned int max_cnt = 10000);
+void saveCloud(const char* filename, const PointCloud_RGB& pc, const int max_cnt = 10000, const bool color = false);
 
 void downSample(const PointCloud_RGB& src, PointCloud_RGB& to);
 

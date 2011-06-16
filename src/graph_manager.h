@@ -46,7 +46,8 @@
 #include <ctime>
 #include <memory> //for auto_ptr
 #include "glviewer.h"
-#include "globaldefinitions.h"
+#include "parameter_server.h"
+
 
 //#define ROSCONSOLE_SEVERITY_INFO
 
@@ -157,9 +158,7 @@ protected:
     QList<QPair<int, int> >* getGraphEdges() const;
     void resetGraph();
 
-
     void mergeAllClouds(pointcloud_type & merge);
-    
     
     AIS::GraphOptimizer3D* optimizer_;
 
@@ -187,17 +186,21 @@ protected:
     /// get translation-distance from 4x4 homogenous
     void static mat2dist(const Eigen::Matrix4f& t, double &dist);
     void mat2components(const Eigen::Matrix4f& t, double& roll, double& pitch, double& yaw, double& dist);
+    bool overlappingViews(AISNavigation::LoadedEdge3D edge);
 
     bool reset_request_;
     std::clock_t last_batch_update_;
     unsigned int marker_id;
     int last_matching_node_;
     bool batch_processing_runs_;
-
+    
 };
 
 geometry_msgs::Point pointInWorldFrame(const Eigen::Vector4f& point3d, Transformation3 transf);
 void transformAndAppendPointCloud (const pointcloud_type &cloud_in, pointcloud_type &cloud_to_append_to,
                                    const tf::Transform transformation, float Max_Depth);
 
+bool overlappingViews(AISNavigation::LoadedEdge3D edge);
+bool triangleRayIntersection(Eigen::Vector3d triangle1,Eigen::Vector3d triangle2, 
+                             Eigen::Vector3d ray_origin, Eigen::Vector3d ray);
 #endif /* GRAPH_MANAGER_H_ */

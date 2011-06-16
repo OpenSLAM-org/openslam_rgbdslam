@@ -16,11 +16,11 @@
 
 
 #include "qtros.h"
-#include "globaldefinitions.h"
+
 QtROS::QtROS(int argc, char *argv[], const char* node_name) {
   std::cout << "Initializing Node...\n";
   ros::init(argc, argv, node_name);
-  n = new ros::NodeHandle(global_ros_namespace);
+  n = new ros::NodeHandle("rgbdslam"); //Ros Namespace
   ROS_INFO("Connected to roscore");
   quitfromgui = false; }
 

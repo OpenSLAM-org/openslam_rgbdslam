@@ -28,7 +28,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/registration.h>
-#include "globaldefinitions.h"
+#include "parameter_server.h"
+
 
 // ICP_1 for external binary
 //#define USE_ICP_BIN
@@ -86,7 +87,7 @@ public:
 			Eigen::Matrix4f& resulting_transformation, 
 			float& rmse,
 			std::vector<cv::DMatch>& matches,//for visualization?
-					unsigned int max_ransac_iterations = 10000) const;
+					unsigned int max_ransac_iterations = 1000) const;
 
 #ifdef USE_ICP_BIN
 	// initial_transformation: optional transformation applied to this->pc before
@@ -117,8 +118,8 @@ public:
 	
 	static const double gicp_epsilon = 1e-4;
 	static const double gicp_d_max = 0.10; // 10cm
-	static const unsigned int gicp_max_iterations = 200;
-	static const unsigned int gicp_point_cnt = 20000;
+	static const unsigned int gicp_max_iterations = 50;
+	static const unsigned int gicp_point_cnt = 10000;
 		
 	bool gicp_initialized;
 	
@@ -157,12 +158,12 @@ protected:
 #ifdef USE_SIFT_GPU
 	//remove also unused descriptors
 	void projectTo3DSiftGPU(std::vector<cv::KeyPoint>& feature_locations_2d,
-					std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& feature_locations_3d,
-					const pointcloud_type& point_cloud, float* descriptors_in, cv::Mat& descriptors_out);
+                            std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& feature_locations_3d,
+                            const pointcloud_type& point_cloud, float* descriptors_in, cv::Mat& descriptors_out);
 #else
 	void projectTo3D(std::vector<cv::KeyPoint>& feature_locations_2d,
-			std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& feature_locations_3d,
-			const pointcloud_type& point_cloud);
+                     std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& feature_locations_3d,
+                     const pointcloud_type& point_cloud);
 #endif
 
 	/*
@@ -176,14 +177,12 @@ protected:
 	// check for distances only if max_dist_cm > 0
 	template<class InputIterator>
 	Eigen::Matrix4f getTransformFromMatches(const Node* other_node, 
-			InputIterator iter_begin,
-			InputIterator iter_end,
-			bool* valid = NULL, 
-			float max_dist_m = -1
-	) const;
+                                            InputIterator iter_begin,
+                                            InputIterator iter_end,
+                                            bool& valid, 
+                                            float max_dist_m = -1) const;
 	//std::vector<cv::DMatch> const* matches,
 	//pcl::TransformationFromCorrespondences& tfc);
-
 
 	///Get the norm of the translational part of an affine matrix (Helper for isBigTrafo)
 	void mat2dist(const Eigen::Matrix4f& t, double &dist){
@@ -196,12 +195,12 @@ protected:
 
 	// helper for ransac
 	void computeInliersAndError(const std::vector<cv::DMatch>& initial_matches,
-			const Eigen::Matrix4f& transformation,
-			const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& origins,
-			const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& targets,
-			std::vector<cv::DMatch>& new_inliers, //output var
-			double& mean_error, vector<double>& errors,
-			double squaredMaxInlierDistInM = 0.0009) const; //output var;
+                                const Eigen::Matrix4f& transformation,
+                                const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& origins,
+                                const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& targets,
+                                std::vector<cv::DMatch>& new_inliers, //output var
+                                double& mean_error, vector<double>& errors,
+                                double squaredMaxInlierDistInM = 0.0009) const; //output var;
 
 public:
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW

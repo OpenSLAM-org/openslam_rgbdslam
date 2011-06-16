@@ -41,7 +41,8 @@ GLViewer::GLViewer(QWidget *parent)
       polygon_mode(GL_FILL),
       cloud_list_indices(),
       edge_list_(NULL),
-      cloud_matrices(new QList<QMatrix4x4>()){
+      cloud_matrices(new QList<QMatrix4x4>()),
+      follow_mode(true){
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding); //can make good use of more space
     viewpoint_tf_.setToIdentity();
 }
@@ -151,6 +152,10 @@ void GLViewer::drawAxis(float scale){
 void GLViewer::paintGL() {
     if(!this->isVisible()) return;
     //ROS_INFO("This is paint-thread %d", (unsigned int)QThread::currentThreadId());
+    if(follow_mode){
+        int id = cloud_matrices->size()-1;
+        if(id >= 0)setViewPoint((*cloud_matrices)[id]);
+    }
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
     //Camera transformation
@@ -220,7 +225,6 @@ void GLViewer::mouseDoubleClickEvent(QMouseEvent *event) {
     zRot=0;
     xTra=0;
     yTra=0;
-    zTra=-120;
     if(cloud_matrices->size()>0){
       if (event->buttons() & Qt::LeftButton) {
         int id = cloud_matrices->size()-1;
@@ -230,10 +234,14 @@ void GLViewer::mouseDoubleClickEvent(QMouseEvent *event) {
         setViewPoint((*cloud_matrices)[id]);
       } else if (event->buttons() & Qt::MidButton) { 
         viewpoint_tf_.setToIdentity();
+        zTra=-120;
       }
       setClickedPosition(event->x(), event->y());
     }
     updateGL();
+}
+void GLViewer::toggleFollowMode(bool flag){
+  follow_mode = flag;
 }
 void GLViewer::mousePressEvent(QMouseEvent *event) {
     lastPos = event->pos();
@@ -285,7 +293,7 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
         ROS_ERROR("No display list could be created");
         return;
     }
-    
+    float mesh_thresh = ParameterServer::instance()->get<double>("squared_meshing_threshold");
     glNewList(cloud_list_index, GL_COMPILE);
     cloud_list_indices.push_back(cloud_list_index);
     //ROS_INFO_COND(!pc->is_dense, "Expected dense cloud for opengl drawing");
@@ -306,9 +314,9 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
                 const point_type* ul = &pc->points[x+y*w]; //current point (upper right)
                 if(hasValidXYZ(*ul)){ //ul, ur, ll all valid
                   depth = squaredEuclideanDistance(*ul,origin);
-                  if (squaredEuclideanDistance(*ul,*ll)/depth <= global_squared_meshing_threshold  and //threshold is defined in globaldefinitions.h
-                      squaredEuclideanDistance(*ul,*ll)/depth <= global_squared_meshing_threshold  and
-                      squaredEuclideanDistance(*ur,*ll)/depth <= global_squared_meshing_threshold){
+                  if (squaredEuclideanDistance(*ul,*ll)/depth <= mesh_thresh  and 
+                      squaredEuclideanDistance(*ul,*ll)/depth <= mesh_thresh  and
+                      squaredEuclideanDistance(*ur,*ll)/depth <= mesh_thresh){
                     glBegin(GL_TRIANGLE_STRIP);
                     strip_on = true;
                     flip = false; //correct order, upper first
@@ -332,9 +340,9 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
                     continue;
                   } else { //at least one can be started at the lower left
                     depth = squaredEuclideanDistance(*ur,origin);
-                    if (squaredEuclideanDistance(*ur,*ll)/depth <= global_squared_meshing_threshold  and //threshold is defined in globaldefinitions.h
-                        squaredEuclideanDistance(*lr,*ll)/depth <= global_squared_meshing_threshold  and
-                        squaredEuclideanDistance(*ur,*lr)/depth <= global_squared_meshing_threshold){
+                    if (squaredEuclideanDistance(*ur,*ll)/depth <= mesh_thresh  and 
+                        squaredEuclideanDistance(*lr,*ll)/depth <= mesh_thresh  and
+                        squaredEuclideanDistance(*ur,*lr)/depth <= mesh_thresh){
                       glBegin(GL_TRIANGLE_STRIP);
                       strip_on = true;
                       flip = true; //but the lower has to be inserted first, for correct order
@@ -359,7 +367,7 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
               else { ul = &pc->points[x+y*w]; } //current point (upper right)
               if(hasValidXYZ(*ul)){ //Neighbours to the left are prepared
                 depth = squaredEuclideanDistance(*ul,origin);
-                if (squaredEuclideanDistance(*ul,*(ul-1))/depth > global_squared_meshing_threshold){
+                if (squaredEuclideanDistance(*ul,*(ul-1))/depth > mesh_thresh){
                   glEnd();
                   strip_on = false;
                   continue;
@@ -384,9 +392,9 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
               else { ll = &pc->points[(x)+(y+1)*w]; } //one down (lower left corner) 
               if(hasValidXYZ(*ll)){ 
                 depth = squaredEuclideanDistance(*ll,origin);
-                if (squaredEuclideanDistance(*ul,*ll)/depth > global_squared_meshing_threshold or
-                    squaredEuclideanDistance(*ul,*(ul-1))/depth > global_squared_meshing_threshold or
-                    squaredEuclideanDistance(*ll,*(ll-1))/depth > global_squared_meshing_threshold){
+                if (squaredEuclideanDistance(*ul,*ll)/depth > mesh_thresh or
+                    squaredEuclideanDistance(*ul,*(ul-1))/depth > mesh_thresh or
+                    squaredEuclideanDistance(*ll,*(ll-1))/depth > mesh_thresh){
                   glEnd();
                   strip_on = false;
                   continue;
@@ -409,7 +417,7 @@ void GLViewer::pointCloud2GLStrip(pointcloud_type const * pc){
     }
     ROS_DEBUG("Compiled pointcloud into list %i",  cloud_list_index);
     glEndList();
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GLViewer::deleteLastNode(){
@@ -430,9 +438,10 @@ void GLViewer::pointCloud2GLList(pointcloud_type const * pc){
         ROS_ERROR("No display list could be created");
         return;
     }
+    float mesh_thresh = ParameterServer::instance()->get<double>("squared_meshing_threshold");
     cloud_list_indices.push_back(cloud_list_index);
     glNewList(cloud_list_index, GL_COMPILE);
-    glBegin(GL_TRIANGLE_STRIP);
+    glBegin(GL_TRIANGLES);
     //ROS_INFO_COND(!pc->is_dense, "Expected dense cloud for opengl drawing");
     const point_type origin = {{{ 0.0 }}, {{0.0}}};
     float depth;
@@ -447,22 +456,20 @@ void GLViewer::pointCloud2GLList(pointcloud_type const * pc){
             depth = squaredEuclideanDistance(*pi,origin);
 
             const point_type* pl = &pc->points[(x+1)+(y+1)*w]; //one right-down
-            if(!(hasValidXYZ(*pl)) or squaredEuclideanDistance(*pi,*pl)/depth > global_squared_meshing_threshold)  //threshold is defined in globaldefinitions.h
+            if(!(hasValidXYZ(*pl)) or squaredEuclideanDistance(*pi,*pl)/depth > mesh_thresh)  
               continue;
 
             const point_type* pj = &pc->points[(x+1)+y*w]; //one right
             if(hasValidXYZ(*pj)
-               and squaredEuclideanDistance(*pi,*pj)/depth <= global_squared_meshing_threshold  //threshold is defined in globaldefinitions.h
-               and squaredEuclideanDistance(*pj,*pl)/depth <= global_squared_meshing_threshold){
+               and squaredEuclideanDistance(*pi,*pj)/depth <= mesh_thresh  
+               and squaredEuclideanDistance(*pj,*pl)/depth <= mesh_thresh){
               drawTriangle(*pi, *pj, *pl);
             }
             const point_type* pk = &pc->points[(x)+(y+1)*w]; //one down
             
-            
-            
             if(hasValidXYZ(*pk)
-               and squaredEuclideanDistance(*pi,*pk)/depth <= global_squared_meshing_threshold  //threshold is defined in globaldefinitions.h
-               and squaredEuclideanDistance(*pk,*pl)/depth <= global_squared_meshing_threshold){
+               and squaredEuclideanDistance(*pi,*pk)/depth <= mesh_thresh  
+               and squaredEuclideanDistance(*pk,*pl)/depth <= mesh_thresh){
               drawTriangle(*pi, *pk, *pl);
             }
         }
@@ -470,7 +477,7 @@ void GLViewer::pointCloud2GLList(pointcloud_type const * pc){
     glEnd();
     ROS_DEBUG("Compiled pointcloud into list %i",  cloud_list_index);
     glEndList();
-    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+    ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << " runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void GLViewer::reset(){
@@ -495,6 +502,7 @@ void GLViewer::setEdges(QList<QPair<int, int> >* edge_list){
 void GLViewer::drawEdges(){
   if(edge_list_ == NULL) return;
   glBegin(GL_LINES);
+  glLineWidth(2);
   glColor4f(1,1,1,0.4);
   for(int i = 0; i < edge_list_->size(); i++){
     int id = (*edge_list_)[i].first;

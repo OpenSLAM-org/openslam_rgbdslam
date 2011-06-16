@@ -26,5 +26,7 @@
   <export>
     <rosdoc config="rosdoc.yaml" />
   </export>
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" />
+ </export>
 </package>
-

@@ -30,7 +30,7 @@
 #include <pcl/filters/voxel_grid.h>
 using namespace std;
 
-void saveCloud(const char* filename, const PointCloud_RGB& pc, const unsigned int max_cnt){
+void saveCloud(const char* filename, const PointCloud_RGB& pc, const int max_cnt, const bool color){
 
     ofstream of;
     of.open(filename);
@@ -38,11 +38,11 @@ void saveCloud(const char* filename, const PointCloud_RGB& pc, const unsigned in
 
     
     int write_step = 1;
-    if (pc.points.size()>max_cnt)
+    if (max_cnt>0 && (int)pc.points.size()>max_cnt)
         write_step = floor(pc.points.size()*1.0/max_cnt);
     
     int cnt = 0;
-    
+    assert(write_step > 0);
 
     
     // only write every write_step.th points
@@ -54,7 +54,18 @@ void saveCloud(const char* filename, const PointCloud_RGB& pc, const unsigned in
         if (invalid)
         	continue;
 
-        of << p.x << "\t" << p.y << "\t" << p.z << endl;
+        
+        of << p.x << "\t" << p.y << "\t" << p.z;
+        if (color) {
+        	
+        	int color = *reinterpret_cast<const int*>(&p.rgb); 
+        	int r = (0xff0000 & color) >> 16;
+        	int g = (0x00ff00 & color) >> 8;
+        	int b = 0x0000ff & color; 
+        	of << "\t \t" << r << "\t" << g << "\t" << b << "\t" << endl;
+        }	
+        else
+        	of << endl;
        // cout << p.x << "\t" << p.y << "\t" << p.z << endl;
                        
         cnt++;

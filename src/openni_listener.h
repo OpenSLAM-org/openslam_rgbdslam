@@ -67,6 +67,7 @@ class OpenNIListener : public QObject {
   public Q_SLOTS:
     ///Switch between processing or ignoring new incoming data
     void togglePause();
+    void toggleBagRecording();
     ///Process a single incomming frame. Useful in pause-mode for getting one snapshot at a time
     void getOneFrame();
 
@@ -95,13 +96,10 @@ class OpenNIListener : public QObject {
     ///Public, s.t. the qt signals can be connected to by the holder of the OpenNIListener
     GraphManager* graph_mgr_;
     
-    ~OpenNIListener(){
-    	bag.close();
-    }
-    
   protected:
     /// Create a QImage from image. The QImage stores its data in the rgba_buffers_ indexed by idx (reused/overwritten each call)
     QImage cvMat2QImage(const cv::Mat& image, unsigned int idx); 
+    QImage cvMat2QImage(const cv::Mat& channel1, const cv::Mat& channel2, const cv::Mat& channel3, unsigned int idx);
 
     //processNode is called by cameraCallback in a separate thread and after finishing visualizes the results
     void processNode(cv::Mat& visual_img,  
@@ -140,6 +138,7 @@ class OpenNIListener : public QObject {
     bool getOneFrame_;
     bool first_frame_;
     QFuture<void> future_;
+    QMutex bagfile_mutex;
 };
 
 /*/Copied from pcl_tf/transform.cpp

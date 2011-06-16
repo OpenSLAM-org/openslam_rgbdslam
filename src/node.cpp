@@ -20,7 +20,6 @@
 #include <ctime>
 #include <Eigen/Geometry>
 #include "pcl/ros/conversions.h"
-#include "pcl/point_types.h"
 #include <pcl/common/transformation_from_correspondences.h>
 #include <opencv2/highgui/highgui.hpp>
 #include <qtconcurrentrun.h>
@@ -54,7 +53,7 @@ Transformation3 eigen2Hogman(const Eigen::Matrix4f eigen_mat) {
       eigen_quat.w());
   Transformation3 result(translation, rotation);
 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
   return result;
 }
 
@@ -85,7 +84,7 @@ matcher_(matcher)
 #endif
 
   ROS_INFO("Feature detection and descriptor extraction runtime: %f", ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC);
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "Feature detection runtime: " << ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC );
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "Feature detection runtime: " << ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC );
 
   /*
     if (id_  == 0)
@@ -101,7 +100,7 @@ matcher_(matcher)
   // TODO: If batch sending/saving of clouds would be removed, the pointcloud wouldn't have to be saved
   // which would slim down the Memory requirements
   pcl::fromROSMsg(*point_cloud,pc_col);
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime5) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "pc2->pcl conversion runtime: " << ( std::clock() - starttime5 ) / (double)CLOCKS_PER_SEC );
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime5) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "pc2->pcl conversion runtime: " << ( std::clock() - starttime5 ) / (double)CLOCKS_PER_SEC );
 
   // project pixels to 3dPositions and create search structures for the gicp
 #ifdef USE_SIFT_GPU
@@ -119,7 +118,7 @@ matcher_(matcher)
 #ifdef USE_ICP_CODE
   std::clock_t starttime4=std::clock();
   createGICPStructures(); 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime4) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "gicp runtime: " << ( std::clock() - starttime4 ) / (double)CLOCKS_PER_SEC );
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime4) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "gicp runtime: " << ( std::clock() - starttime4 ) / (double)CLOCKS_PER_SEC );
 #endif
 
   std::clock_t starttime2=std::clock();
@@ -133,9 +132,9 @@ matcher_(matcher)
   extractor->compute(visual, feature_locations_2d_, feature_descriptors_); //fill feature_descriptors_ with information 
 #endif
   assert(feature_locations_2d_.size() == feature_locations_3d_.size());
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime2) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "Feature extraction runtime: " << ( std::clock() - starttime2 ) / (double)CLOCKS_PER_SEC );
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime2) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "Feature extraction runtime: " << ( std::clock() - starttime2 ) / (double)CLOCKS_PER_SEC );
 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "constructor runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "constructor runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 Node::~Node(){
@@ -181,7 +180,7 @@ bool Node::getRelativeTransformationTo_ICP_code(const Node* target_node,Eigen::M
 
   GICP2Eigen(final_trafo,transformation);
 
-  //ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_icp) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "ICP 2 runtime: " << ( std::clock() - starttime_icp ) / (double)CLOCKS_PER_SEC );
+  //ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_icp) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "ICP 2 runtime: " << ( std::clock() - starttime_icp ) / (double)CLOCKS_PER_SEC );
 
   return iterations < gicp_max_iterations;
 
@@ -207,7 +206,7 @@ bool Node::getRelativeTransformationTo_ICP_bin(const Node* target_node,
     converged = gicpfallback(pc_col,target_node->pc_col, transformation); }
 
   // Paper
-  // ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_icp) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "ICP runtime: " << ( std::clock() - starttime_icp ) / (double)CLOCKS_PER_SEC );
+  // ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_icp) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "ICP runtime: " << ( std::clock() - starttime_icp ) / (double)CLOCKS_PER_SEC );
 
   return converged;
 }
@@ -274,7 +273,7 @@ void Node::createGICPStructures(unsigned int max_count){
   gicp_point_set->ComputeMatrices();
   gicp_point_set->SetMaxIterationInner(8); // as in test_gicp->cpp
   gicp_point_set->SetMaxIteration(gicp_max_iterations);
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_gicp) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime to create gicp-Structures: "<< ( std::clock() - starttime_gicp ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime_gicp) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime to create gicp-Structures: "<< ( std::clock() - starttime_gicp ) / (double)CLOCKS_PER_SEC  <<"sec");
 
   ROS_INFO_STREAM("time for creating the structure: " << ((std::clock()-starttime_gicp*1.0) / (double)CLOCKS_PER_SEC));
   ROS_INFO_STREAM("current: " << std::clock() << " " << "start_time: " << starttime_gicp);
@@ -327,7 +326,7 @@ int Node::findPairsFlann(const Node* other, vector<cv::DMatch>* matches) const {
 
   //ROS_INFO("matches size: %i, rows: %i", (int) matches->size(), feature_descriptors_.rows);
 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "findPairsFlann runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "findPairsFlann runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
   return matches->size();
 }
 
@@ -386,7 +385,7 @@ void Node::projectTo3DSiftGPU(std::vector<cv::KeyPoint>& feature_locations_2d,
     }
   }
 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 
@@ -430,20 +429,20 @@ void Node::projectTo3D(std::vector<cv::KeyPoint>& feature_locations_2d,
 
 
 
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 #endif
 
 
 
 void Node::computeInliersAndError(const std::vector<cv::DMatch>& matches,
-    const Eigen::Matrix4f& transformation,
-    const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& origins,
-    const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& earlier,
-    std::vector<cv::DMatch>& inliers, //output var
-    double& mean_error,
-    vector<double>& errors,
-    double squaredMaxInlierDistInM) const{ //output var
+                                  const Eigen::Matrix4f& transformation,
+                                  const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& origins,
+                                  const std::vector<Eigen::Vector4f, Eigen::aligned_allocator<Eigen::Vector4f> >& earlier,
+                                  std::vector<cv::DMatch>& inliers, //output var
+                                  double& mean_error,
+                                  vector<double>& errors,
+                                  double squaredMaxInlierDistInM) const{ //output var
 
   std::clock_t starttime=std::clock();
 
@@ -466,8 +465,10 @@ void Node::computeInliersAndError(const std::vector<cv::DMatch>& matches,
 
     if(error > squaredMaxInlierDistInM)
       continue; //ignore outliers
-
-
+    if(!(error >= 0.0)){
+      ROS_ERROR_STREAM("Transformation for error !> 0: " << transformation);
+      ROS_ERROR_STREAM(error << " " << matches.size());
+    }
     error = sqrt(error);
     dists.push_back(pair<float,int>(error,j));
     inliers_temp.push_back(matches[j]); //include inlier
@@ -476,12 +477,10 @@ void Node::computeInliersAndError(const std::vector<cv::DMatch>& matches,
     errors.push_back(error);
   }
 
-  if (inliers_temp.size()==0){
-    mean_error = -1;
-    inliers = inliers_temp;
-  }
-  else
-  {
+  if (inliers_temp.size()<3){ //at least the samples should be inliers
+    ROS_WARN_COND(inliers_temp.size() > 3, "No inliers at all in %d matches!", (int)matches.size()); // only warn if this checks for all initial matches
+    mean_error = 1e9;
+  } else {
     mean_error /= inliers_temp.size();
 
     // sort inlier ascending according to their error
@@ -492,50 +491,38 @@ void Node::computeInliersAndError(const std::vector<cv::DMatch>& matches,
       inliers[i] = matches[dists[i].second];
     }
   }
-
-
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  if(!(mean_error>0)) ROS_ERROR_STREAM("Transformation for mean error !> 0: " << transformation);
+  if(!(mean_error>0)) ROS_ERROR_STREAM(mean_error << " " << inliers_temp.size());
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", "function runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 
 }
-/*
-template<class InputIterator, class T>
-  InputIterator find ( InputIterator first, InputIterator last, const T& value )
-  {
-    for ( ;first!=last; first++) if ( *first==value ) break;
-    return first;
-  }
- */
+
 template<class InputIterator>
 Eigen::Matrix4f Node::getTransformFromMatches(const Node* earlier_node,
-    InputIterator iter_begin,
-    InputIterator iter_end,
-    bool* valid, 
-    float max_dist_m) const {
-
+                                              InputIterator iter_begin,
+                                              InputIterator iter_end,
+                                              bool& valid, 
+                                              float max_dist_m) const 
+{
   pcl::TransformationFromCorrespondences tfc;
-
-  vector<Eigen::Vector3f> f;
-  vector<Eigen::Vector3f> t;
-
+  valid = true;
+  vector<Eigen::Vector3f> t, f;
 
   for ( ;iter_begin!=iter_end; iter_begin++) {
     int this_id    = iter_begin->queryIdx;
     int earlier_id = iter_begin->trainIdx;
 
     Eigen::Vector3f from(this->feature_locations_3d_[this_id][0],
-        this->feature_locations_3d_[this_id][1],
-        this->feature_locations_3d_[this_id][2]);
+                         this->feature_locations_3d_[this_id][1],
+                         this->feature_locations_3d_[this_id][2]);
     Eigen::Vector3f  to (earlier_node->feature_locations_3d_[earlier_id][0],
-        earlier_node->feature_locations_3d_[earlier_id][1],
-        earlier_node->feature_locations_3d_[earlier_id][2]);
-
-    if (max_dist_m > 0)
-    {
+                         earlier_node->feature_locations_3d_[earlier_id][1],
+                         earlier_node->feature_locations_3d_[earlier_id][2]);
+    if (max_dist_m > 0) {  //storing is only necessary, if max_dist is given
       f.push_back(from);
       t.push_back(to);    
     }
-
-    tfc.add(from, to);
+    tfc.add(from, to, 1.0/to(0));//the further, the less weight b/c of accuracy decay
   }
 
 
@@ -545,38 +532,23 @@ Eigen::Matrix4f Node::getTransformFromMatches(const Node* earlier_node,
 
   if (max_dist_m > 0)
   {  
-    float min_neighbour_dist = 1e6;
+    //float min_neighbour_dist = 1e6;
     Eigen::Matrix4f foo;
 
-    *valid = true;
+    valid = true;
     for (uint i=0; i<f.size(); i++)
     {
       float d_f = (f.at((i+1)%f.size())-f.at(i)).norm();
-      
-      min_neighbour_dist = min(d_f,min_neighbour_dist);
-      
       float d_t = (t.at((i+1)%t.size())-t.at(i)).norm();
 
-      // distances should be equal since moving and rotating preserves distances
-      // 5 cm as threshold
-      if ( abs(d_f-d_t) > max_dist_m )
-      {
-        // ROS_INFO("getTransformFromMatches: stop: dist is %.2f (max (%.2f))", 100* abs(d_f-d_t),100* max_dist_m);
-        *valid = false;
-        return foo;
+      if ( abs(d_f-d_t) > max_dist_m ) {
+        valid = false;
+        return Eigen::Matrix4f();
       }
     }
-  
-    // check minimal size
-    if (min_neighbour_dist < 0.5)
-    {
-      // ROS_INFO("getTransformFromMatches: stop: min neighbour dist is only %.0f", min_neighbour_dist*100);
-    }
-  
+    //here one could signal that some samples are very close, but as the transformation is validated elsewhere we don't
+    //if (min_neighbour_dist < 0.5) { ROS_INFO...}
   }
-
-  
-
   // get relative movement from samples
   return tfc.getTransformation().matrix();
 }
@@ -585,64 +557,40 @@ Eigen::Matrix4f Node::getTransformFromMatches(const Node* earlier_node,
 ///Find transformation with largest support, RANSAC style.
 ///Return false if no transformation can be found
 bool Node::getRelativeTransformationTo(const Node* earlier_node,
-    std::vector<cv::DMatch>* initial_matches,
-    Eigen::Matrix4f& resulting_transformation,
-    float& rmse, 
-    std::vector<cv::DMatch>& matches,
-    //float min_inlier_ratio,
-    unsigned int ransac_iterations) const{
-  //ROS_INFO("unsigned int min_inlier_threshold %i", min_inlier_threshold);
-  // std::clock_t starttime=std::clock();
+                                       std::vector<cv::DMatch>* initial_matches,
+                                       Eigen::Matrix4f& resulting_transformation,
+                                       float& rmse, 
+                                       std::vector<cv::DMatch>& matches,
+                                       unsigned int ransac_iterations) const
+{
+  std::clock_t starttime=std::clock();
 
   assert(initial_matches != NULL);
-
-  // ROS_INFO("inlier_threshold: %d", min_inlier_threshold);
-
-
   matches.clear();
   
-  // get 30% of initial matches as inliers (but cut off at 30)
-  float pct = 0.2;
-  uint min_fix = 30;
-  
-  uint min_inlier_threshold = int(initial_matches->size()*pct);
-  min_inlier_threshold = min(min_inlier_threshold,min_fix);
-    
-  uint min_feature_cnt = 50;
-
-  if(initial_matches->size() <= min_feature_cnt){ 
-    ROS_INFO("Only %d feature matches between %d and %d (minimal: %i)",(int)initial_matches->size() , this->id_, earlier_node->id_, min_feature_cnt);
+  if(initial_matches->size() <= (unsigned int) ParameterServer::instance()->get<int>("min_matches")){
+    ROS_INFO("Only %d feature matches between %d and %d (minimal: %i)",(int)initial_matches->size() , this->id_, earlier_node->id_, ParameterServer::instance()->get<int>("min_matches"));
     return false;
   }
+
+  unsigned int min_inlier_threshold = int(initial_matches->size()*0.2);
   std::vector<cv::DMatch> inlier; //holds those feature correspondences that support the transformation
   double inlier_error; //all squared errors
   srand((long)std::clock());
   
   // a point is an inlier if it's no more than max_dist_m m from its partner apart
-  const float max_dist_m = 0.03;
-  const unsigned int sample_size = 3;// chose this many randomly from the correspondences:
-  vector<double> errors;
-  vector<double> temp_errorsA;
-
-  double best_error = 1e6;
-  uint best_inlier_cnt = 0;
-
-  int valid_iterations = 0;
-  Eigen::Matrix4f transformation;
+  const float max_dist_m = ParameterServer::instance()->get<double>("max_dist_for_inliers");
+  vector<double> dummy;
 
   // best values of all iterations (including invalids)
-  double best_error_invalid = 1e6;
-  uint best_inlier_invalid = 0;
+  double best_error = 1e6, best_error_invalid = 1e6;
+  unsigned int best_inlier_invalid = 0, best_inlier_cnt = 0, valid_iterations = 0;
 
+  Eigen::Matrix4f transformation;
   
-  
-  //ROS_INFO("running %i iterations with %i initial matches, min_match: %i, max_error: %.2f", (int) ransac_iterations, (int) initial_matches->size(), (int) min_inlier_threshold, max_dist_m*100 );
-
+  const unsigned int sample_size = 3;// chose this many randomly from the correspondences:
   for (uint n_iter = 0; n_iter < ransac_iterations; n_iter++) {
     //generate a map of samples. Using a map solves the problem of drawing a sample more than once
-
-    // ROS_INFO("iteration %d of %d", n_iter,ransac_iterations);
-
     std::set<cv::DMatch> sample_matches;
     std::vector<cv::DMatch> sample_matches_vector;
     while(sample_matches.size() < sample_size){
@@ -651,25 +599,25 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
       sample_matches_vector.push_back(initial_matches->at(id));
     }
 
-    bool valid;
-
-    transformation = getTransformFromMatches(earlier_node, sample_matches.begin(), sample_matches.end(),&valid,max_dist_m);
-
-    // valid is false iff the sampled points aren't inliers themself 
-    if (!valid)
-      continue;
-
+    bool valid; // valid is false iff the sampled points clearly aren't inliers themself 
+    transformation = getTransformFromMatches(earlier_node, sample_matches.begin(), sample_matches.end(),valid,max_dist_m);
+    if (!valid) continue; // valid is false iff the sampled points aren't inliers themself 
+    if(transformation!=transformation) continue; //Contains NaN
+    
+    //test whether samples are inliers (more strict than before)
+    computeInliersAndError(sample_matches_vector, transformation, this->feature_locations_3d_, 
+                           earlier_node->feature_locations_3d_, inlier, inlier_error,  /*output*/
+                           dummy, max_dist_m*max_dist_m); 
+    if(inlier_error > 1000) continue; //most possibly a false match in the samples
     computeInliersAndError(*initial_matches, transformation, this->feature_locations_3d_, 
-        earlier_node->feature_locations_3d_, inlier, inlier_error,  /*output*/
-        temp_errorsA, max_dist_m*max_dist_m); /*output*/
+                           earlier_node->feature_locations_3d_, inlier, inlier_error,  /*output*/
+                           dummy, max_dist_m*max_dist_m);
 
     // check also invalid iterations
-    if (inlier.size() > best_inlier_invalid)
-    {
+    if (inlier.size() > best_inlier_invalid) {
       best_inlier_invalid = inlier.size();
       best_error_invalid = inlier_error;
     }
-
     // ROS_INFO("iteration %d  cnt: %d, best: %d,  error: %.2f",n_iter, inlier.size(), best_inlier_cnt, inlier_error*100);
 
     if(inlier.size() < min_inlier_threshold || inlier_error > max_dist_m){
@@ -679,7 +627,7 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
     }
     // ROS_INFO("Refining iteration from %i samples: all matches: %i, inliers: %i, inlier_error: %f", (int)sample_size, (int)initial_matches->size(), (int)inlier.size(), inlier_error);
     valid_iterations++;
-    //if (inlier_error > 0) ROS_ERROR("size: %i", (int)temp_errorsA.size());
+    //if (inlier_error > 0) ROS_ERROR("size: %i", (int)dummy.size());
     assert(inlier_error>0);
 
     //Performance hacks:
@@ -697,7 +645,6 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
       best_inlier_cnt = inlier.size();
       //assert(matches.size()>= ((float)initial_matches->size())*min_inlier_ratio);
       rmse = inlier_error;
-      errors = temp_errorsA;
       best_error = inlier_error;
       // ROS_INFO("  new best iteration %d  cnt: %d, best_inlier: %d,  error: %.4f, bestError: %.4f",n_iter, inlier.size(), best_inlier_cnt, inlier_error, best_error);
 
@@ -709,10 +656,11 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
     //int max_ndx = min((int) min_inlier_threshold,30); //? What is this 30?
     double new_inlier_error;
 
-    transformation = getTransformFromMatches(earlier_node, matches.begin(), matches.end()); // compute new trafo from all inliers:
+    transformation = getTransformFromMatches(earlier_node, matches.begin(), matches.end(), valid); // compute new trafo from all inliers:
+    if(transformation!=transformation) continue; //Contains NaN
     computeInliersAndError(*initial_matches, transformation,
-        this->feature_locations_3d_, earlier_node->feature_locations_3d_,
-        inlier, new_inlier_error, temp_errorsA, max_dist_m*max_dist_m);
+                           this->feature_locations_3d_, earlier_node->feature_locations_3d_,
+                           inlier, new_inlier_error, dummy, max_dist_m*max_dist_m);
 
     // ROS_INFO("asd recomputed: inliersize: %i, inlier error: %f", (int) inlier.size(),100*new_inlier_error);
 
@@ -740,7 +688,6 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
       assert(matches.size()>= min_inlier_threshold);
       //assert(matches.size()>= ((float)initial_matches->size())*min_inlier_ratio);
       rmse = new_inlier_error;
-      errors = temp_errorsA;
       best_error = new_inlier_error;
       // ROS_INFO("  improved: new best iteration %d  cnt: %d, best_inlier: %d,  error: %.2f, bestError: %.2f",n_iter, inlier.size(), best_inlier_cnt, inlier_error*100, best_error*100);
     }else
@@ -751,10 +698,8 @@ bool Node::getRelativeTransformationTo(const Node* earlier_node,
   ROS_INFO("%i good iterations (from %i), inlier pct %i, inlier cnt: %i, error: %.2f cm",valid_iterations, (int) ransac_iterations, (int) (matches.size()*1.0/initial_matches->size()*100),(int) matches.size(),rmse*100);
   // ROS_INFO("best overall: inlier: %i, error: %.2f",best_inlier_invalid, best_error_invalid*100);
 
-
-  // ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "getRelativeTransformationTo runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
-
-return matches.size() >= min_inlier_threshold;
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
+  return matches.size() >= min_inlier_threshold;
 }
 
 
@@ -795,10 +740,9 @@ MatchingResult Node::matchNodePair(const Node* older_node){
     ROS_INFO("Too few inliers: Adding no Edge between %i and %i. Only %i correspondences to begin with.",
         older_node->id_,this->id_,(int)mr.all_matches.size());
   } 
-  else {
-    if (!getRelativeTransformationTo(older_node,&mr.all_matches, mr.ransac_trafo, mr.rmse, mr.inlier_matches) ){ // mr.all_matches.size()/3
+  else if (!getRelativeTransformationTo(older_node,&mr.all_matches, mr.ransac_trafo, mr.rmse, mr.inlier_matches) ){ // mr.all_matches.size()/3
       ROS_INFO("Found no valid trafo, but had initially %d feature matches",(int) mr.all_matches.size());
-    } else  {
+  } else  {
 
       mr.final_trafo = mr.ransac_trafo;
       
@@ -815,17 +759,12 @@ MatchingResult Node::matchNodePair(const Node* older_node){
 
       ROS_INFO("icp: inliers: %i", mr.inlier_matches.size());
       
-      if (!converged)
-      { 
+      if (!converged) { 
         ROS_INFO("ICP did not converge. No Edge added");
         return mr;
       }
 
-
-
       mr.final_trafo = mr.ransac_trafo * mr.icp_trafo;
-
-
 
       MatchingResult mr_icp;
       vector<double> errors;
@@ -835,7 +774,6 @@ MatchingResult Node::matchNodePair(const Node* older_node){
       computeInliersAndError(mr.inlier_matches, mr.final_trafo,
           this->feature_locations_3d_, older_node->feature_locations_3d_,
           inliers, error, errors, 0.04*0.04); 
-
 
       for (uint i=0; i<errors.size(); i++)
       {
@@ -866,9 +804,6 @@ MatchingResult Node::matchNodePair(const Node* older_node){
         cout << "#### icp-error is too large, ignoring the connection" << endl;
         return mr;
       }
-
-
-
 #endif
        
 
@@ -882,10 +817,8 @@ MatchingResult Node::matchNodePair(const Node* older_node){
       mr.edge.id2 = this->id_; //since there are enough matching features,
       mr.edge.mean = eigen2Hogman(mr.final_trafo);//we insert an edge between the frames
       mr.edge.informationMatrix =   Matrix6::eye(mr.inlier_matches.size()*mr.inlier_matches.size()); //TODO: What do we do about the information matrix? Scale with inlier_count. Should rmse be integrated?)
-    }
   }
   // Paper
-  // ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "processNodePair runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
   return mr;
 }
 

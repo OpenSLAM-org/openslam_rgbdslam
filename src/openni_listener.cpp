@@ -30,9 +30,10 @@
 #include <ctime>
 #include <sensor_msgs/PointCloud2.h>
 #include <Eigen/Core>
-#include <QMessageBox>
+//#include <QMessageBox>
 #include "node.h"
-#include "globaldefinitions.h"
+
+#include "parameter_server.h"
 
 
 OpenNIListener::OpenNIListener(ros::NodeHandle nh, GraphManager* graph_mgr,
@@ -40,15 +41,15 @@ OpenNIListener::OpenNIListener(ros::NodeHandle nh, GraphManager* graph_mgr,
                                const char* depth_topic, const char* cloud_topic, 
                                const char* detector_type, const char* extractor_type) 
 : graph_mgr_(graph_mgr),
-  visual_sub_ (nh, visual_topic, global_subscriber_queue_size),
-  depth_sub_(nh, depth_topic, global_subscriber_queue_size),
-  cloud_sub_(nh, cloud_topic, global_subscriber_queue_size),
-  sync_(MySyncPolicy(global_subscriber_queue_size),  visual_sub_, depth_sub_, cloud_sub_),
+  visual_sub_ (nh, visual_topic, ParameterServer::instance()->get<int>("subscriber_queue_size")),
+  depth_sub_(nh, depth_topic, ParameterServer::instance()->get<int>("subscriber_queue_size")),
+  cloud_sub_(nh, cloud_topic, ParameterServer::instance()->get<int>("subscriber_queue_size")),
+  sync_(MySyncPolicy(ParameterServer::instance()->get<int>("subscriber_queue_size")),  visual_sub_, depth_sub_, cloud_sub_),
   depth_mono8_img_(cv::Mat()),
   nh_(nh),
   /*callback_counter_(0),*/
   save_bag_file(false),
-  pause_(global_start_paused),
+  pause_(ParameterServer::instance()->get<bool>("start_paused")),
   getOneFrame_(false),
   first_frame_(true)
   //pc_pub(nh.advertise<sensor_msgs::PointCloud2>("transformed_cloud", 2))
@@ -61,34 +62,25 @@ OpenNIListener::OpenNIListener(ros::NodeHandle nh, GraphManager* graph_mgr,
   ROS_FATAL_COND(detector_.empty(), "No valid opencv keypoint detector!");
   extractor_ = this->createDescriptorExtractor(extractor_type);
   matcher_ = new cv::BruteForceMatcher<cv::L2<float> >() ;
-  pub_cloud_ = nh.advertise<sensor_msgs::PointCloud2> (global_topic_reframed_cloud, 
-                                                       global_publisher_queue_size);
+
+  ParameterServer* params = ParameterServer::instance();
+  pub_cloud_ = nh.advertise<sensor_msgs::PointCloud2> (params->get<std::string>("topic_reframed_cloud"),
+		  params->get<int>("publisher_queue_size"));
   pub_transf_cloud_ = nh.advertise<sensor_msgs::PointCloud2> (
-                      global_topic_transformed_cloud, global_publisher_queue_size);
-  pub_ref_cloud_ = nh.advertise<sensor_msgs::PointCloud2>(global_topic_first_cloud, 
-                                                          global_publisher_queue_size);
+		  params->get<std::string>("topic_transformed_cloud"), params->get<int>("publisher_queue_size"));
+  pub_ref_cloud_ = nh.advertise<sensor_msgs::PointCloud2>(params->get<std::string>("topic_first_cloud"),
+		  params->get<int>("publisher_queue_size"));
   
-	// save bag
-	// create a nice name
-	if (save_bag_file)
-	{
-		time_t rawtime; 
-		struct tm * timeinfo;
-		char buffer [80];
-
-		time ( &rawtime );
-		timeinfo = localtime ( &rawtime );
-		strftime (buffer,80,"bags/%Y_%m_%d__%H_%M_%S.bag",timeinfo);
-
-		bag.open(buffer, rosbag::bagmode::Write);
-	} 
 }
+
+
 
 void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_img_msg, 
                                      const sensor_msgs::ImageConstPtr& depth_img_msg,   
                                      const sensor_msgs::PointCloud2ConstPtr& point_cloud) {
   std::clock_t starttime=std::clock();
   ROS_DEBUG("Received data from kinect");
+
   //Get images into OpenCV format
 	sensor_msgs::CvBridge bridge;
 	cv::Mat depth_float_img = bridge.imgMsgToCv(depth_img_msg); 
@@ -107,19 +99,41 @@ void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_im
   Q_EMIT newDepthImage (cvMat2QImage(depth_mono8_img_,1));//overwrites last cvMat2QImage
   if(getOneFrame_) { //if getOneFrame_ is set, unset it and skip check for  pause
       getOneFrame_ = false;
-  } else if(pause_) { //Visualization and nothing else
-    usleep(200000);
+  } else if(pause_ && !save_bag_file) { //Visualization and nothing else
     return; 
   }
 
-	if (save_bag_file){
+  ros::Time d_time = depth_img_msg->header.stamp;
+  ros::Time rgb_time = visual_img_msg->header.stamp;
+  ros::Time pc_time = point_cloud->header.stamp;
+  long rgb_timediff = abs(static_cast<long>(rgb_time.nsec) - static_cast<long>(pc_time.nsec));
+  if(d_time.nsec != pc_time.nsec ||rgb_timediff > 33333333){
+      ROS_WARN_COND(d_time.nsec != pc_time.nsec, "PointCloud doesn't correspond to depth image");
+      ROS_WARN_COND(rgb_timediff > 33333333, "Point cloud and RGB image off more than 1/30sec: %li (nsec)", rgb_timediff);
+      ROS_WARN_COND(ParameterServer::instance()->get<bool>("drop_async_frames"), "Asynchronous frames ignored. See parameters if you want to keep async frames.");
+      ROS_INFO("Depth image time: %d - %d", d_time.sec,   d_time.nsec);
+      ROS_INFO("RGB   image time: %d - %d", rgb_time.sec, rgb_time.nsec);
+      ROS_INFO("Point cloud time: %d - %d", pc_time.sec,  pc_time.nsec);
+      getOneFrame_ = true; //more luck next time?
+      if(ParameterServer::instance()->get<bool>("drop_async_frames"))return;
+  } else {
+      ROS_DEBUG("Depth image time: %d - %d", d_time.sec,   d_time.nsec);
+      ROS_DEBUG("RGB   image time: %d - %d", rgb_time.sec, rgb_time.nsec);
+      ROS_DEBUG("Point cloud time: %d - %d", pc_time.sec,  pc_time.nsec);
+  }
+
+	if (bagfile_mutex.tryLock() && save_bag_file){
 		// todo: make the names dynamic
 		bag.write("/camera/rgb/points", ros::Time::now(), point_cloud);
 		bag.write("/camera/rgb/image_mono", ros::Time::now(), visual_img_msg);
 		bag.write("/camera/depth/image", ros::Time::now(), depth_img_msg);
+    ROS_INFO_STREAM("Wrote to bagfile " << bag.getFileName());
+    bagfile_mutex.unlock();
+    if(pause_) return; 
 	}
 
-  //ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", "Callback runtime before addNode: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+
+  //ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > min_time_reported, "timings", "Callback runtime before addNode: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 
   //######### Main Work: create new node an add it to the graph ###############################
   Q_EMIT setGUIStatus("Computing Keypoints and Features");
@@ -137,8 +151,8 @@ void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_im
   std::clock_t parallel_wait_time=std::clock();
   future_.waitForFinished(); //Wait if GraphManager ist still computing. Does this skip on empty qfuture?
   ROS_INFO_STREAM_NAMED("timings", "waiting time: "<< ( std::clock() - parallel_wait_time ) / (double)CLOCKS_PER_SEC  <<"sec"); 
-  Q_EMIT newVisualImage(cvMat2QImage(visual_img, 0)); //visual_idx=0
-  Q_EMIT newDepthImage (cvMat2QImage(depth_mono8_img_,1));//overwrites last cvMat2QImage
+  //Q_EMIT newVisualImage(cvMat2QImage(visual_img, 0)); //visual_idx=0
+  //Q_EMIT newDepthImage (cvMat2QImage(visual_img, depth_mono8_img_,depth_mono8_img_,1));//overwrites last cvMat2QImage
   //processNode runs in the background and after finishing visualizes the results
 //#define CONCURRENT_NODE_CONSTRUCTION 1
 #ifdef CONCURRENT_NODE_CONSTRUCTION
@@ -147,7 +161,7 @@ void OpenNIListener::cameraCallback (const sensor_msgs::ImageConstPtr& visual_im
 #else
   processNode(visual_img, point_cloud, node_ptr);
 #endif
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 void OpenNIListener::processNode(cv::Mat& visual_img,   // will be drawn to
@@ -158,8 +172,12 @@ void OpenNIListener::processNode(cv::Mat& visual_img,   // will be drawn to
   bool has_been_added = graph_mgr_->addNode(new_node);
 
   //######### Visualization code  #############################################
-  if(has_been_added) graph_mgr_->drawFeatureFlow(visual_img);
-  Q_EMIT newFeatureFlowImage(cvMat2QImage(visual_img, 2)); //include the feature flow now
+  cv::Mat feature_img = cv::Mat::zeros(visual_img.rows, visual_img.cols, CV_8UC1);
+  if(has_been_added){
+      graph_mgr_->drawFeatureFlow(feature_img);
+      //Q_EMIT newFeatureFlowImage(cvMat2QImage(visual_img, 2)); //include the feature flow now
+  }
+  Q_EMIT newFeatureFlowImage(cvMat2QImage(visual_img,depth_mono8_img_, feature_img, 2)); //show registration
   ROS_DEBUG("Sending PointClouds"); 
   //if node position was optimized: publish received pointcloud in new frame
   if (has_been_added && graph_mgr_->freshlyOptimized_ && (pub_cloud_.getNumSubscribers() > 0)){
@@ -189,20 +207,21 @@ void OpenNIListener::processNode(cv::Mat& visual_img,   // will be drawn to
   }
 
   if(!has_been_added) delete new_node;
-  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > global_min_time_reported, "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec"); 
+  ROS_INFO_STREAM_COND_NAMED(( (std::clock()-starttime) / (double)CLOCKS_PER_SEC) > ParameterServer::instance()->get<double>("min_time_reported"), "timings", __FUNCTION__ << "runtime: "<< ( std::clock() - starttime ) / (double)CLOCKS_PER_SEC  <<"sec");
 }
 
 
 using namespace cv;
 ///Analog to opencv example file and modified to use adjusters
 FeatureDetector* OpenNIListener::createDetector( const string& detectorType ) {
-    FeatureDetector* fd = 0;
+	ParameterServer* params = ParameterServer::instance();
+	FeatureDetector* fd = 0;
     if( !detectorType.compare( "FAST" ) ) {
         //fd = new FastFeatureDetector( 20/*threshold*/, true/*nonmax_suppression*/ );
         fd = new DynamicAdaptedFeatureDetector (new FastAdjuster(20,true), 
-                                                global_adjuster_min_keypoints, 
-                                                global_adjuster_max_keypoints, 
-                                                global_fast_adjuster_max_iterations);
+												params->get<int>("adjuster_min_keypoints"),
+												params->get<int>("adjuster_max_keypoints"),
+												params->get<int>("fast_adjuster_max_iterations"));
     }
     else if( !detectorType.compare( "STAR" ) ) {
         fd = new StarFeatureDetector( 16/*max_size*/, 5/*response_threshold*/, 10/*line_threshold_projected*/,
@@ -217,9 +236,9 @@ FeatureDetector* OpenNIListener::createDetector( const string& detectorType ) {
     }
     else if( !detectorType.compare( "SURF" ) ) {
         fd = new DynamicAdaptedFeatureDetector(new SurfAdjuster(),
-                                               global_adjuster_min_keypoints,
-                                               global_adjuster_max_keypoints,
-                                               global_surf_adjuster_max_iterations);
+        										params->get<int>("adjuster_min_keypoints"),
+												params->get<int>("adjuster_max_keypoints"),
+												params->get<int>("surf_adjuster_max_iterations"));
     }
     else if( !detectorType.compare( "MSER" ) ) {
         fd = new MserFeatureDetector( 1/*delta*/, 60/*min_area*/, 14400/*_max_area*/, 0.35f/*max_variation*/,
@@ -253,6 +272,30 @@ DescriptorExtractor* OpenNIListener::createDescriptorExtractor( const string& de
     return extractor;
 }
 
+void OpenNIListener::toggleBagRecording(){
+  bagfile_mutex.lock();
+  save_bag_file = !save_bag_file;
+	// save bag
+	if (save_bag_file)
+	{
+		time_t rawtime; 
+		struct tm * timeinfo;
+		char buffer [80];
+
+		time ( &rawtime );
+		timeinfo = localtime ( &rawtime );
+    // create a nice name
+		strftime (buffer,80,"kinect_%Y-%m-%d-%H-%M-%S.bag",timeinfo);
+
+		bag.open(buffer, rosbag::bagmode::Write);
+    ROS_INFO_STREAM("Opened bagfile " << bag.getFileName());
+	} else {
+    ROS_INFO_STREAM("Closing bagfile " << bag.getFileName());
+    bag.close();
+  }
+  bagfile_mutex.unlock();
+}
+
 void OpenNIListener::togglePause(){
   pause_ = !pause_;
   if(pause_) Q_EMIT setGUIStatus("Processing Thread Stopped");
@@ -260,6 +303,32 @@ void OpenNIListener::togglePause(){
 }
 void OpenNIListener::getOneFrame(){
   getOneFrame_=true;
+}
+/// Create a QImage from image. The QImage stores its data in the rgba_buffers_ indexed by idx (reused/overwritten each call)
+QImage OpenNIListener::cvMat2QImage(const cv::Mat& channel1, const cv::Mat& channel2, const cv::Mat& channel3, unsigned int idx){
+  if(rgba_buffers_.size() <= idx){
+      rgba_buffers_.resize(idx+1);
+  }
+  if(channel2.rows != channel1.rows || channel2.cols != channel1.cols ||
+     channel3.rows != channel1.rows || channel3.cols != channel1.cols){
+     ROS_ERROR("Image channels to be combined differ in size");
+  }
+  if(channel1.rows != rgba_buffers_[idx].rows || channel1.cols != rgba_buffers_[idx].cols){
+    ROS_DEBUG("Created new rgba_buffer with index %i", idx);
+    rgba_buffers_[idx] = cv::Mat( channel1.rows, channel1.cols, CV_8UC4); 
+    printMatrixInfo(rgba_buffers_[idx]);
+  }
+  std::vector<cv::Mat> input;
+  cv::Mat alpha( channel1.rows, channel1.cols, CV_8UC1, cv::Scalar(255)); //TODO this could be buffered for performance
+  input.push_back(channel1);
+  input.push_back(channel2);
+  input.push_back(channel3);
+  input.push_back(alpha);
+  cv::merge(input, rgba_buffers_[idx]);
+  printMatrixInfo(rgba_buffers_[idx]);
+  return QImage((unsigned char *)(rgba_buffers_[idx].data), 
+                rgba_buffers_[idx].cols, rgba_buffers_[idx].rows, 
+                rgba_buffers_[idx].step, QImage::Format_RGB32 );
 }
 
 /// Create a QImage from image. The QImage stores its data in the rgba_buffers_ indexed by idx (reused/overwritten each call)

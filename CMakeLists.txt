@@ -61,7 +61,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR} ${QT_QTOPENGL_INCLUDE_DIR} gicp/
 
 LINK_DIRECTORIES(${LIBRARY_OUTPUT_PATH})
 SET(${CMAKE_LIBRARY_PATH} ${LIBRARY_OUTPUT_PATH})
-
+#SET(CMAKE_INCLUDE_DIRECTORIES_PROJECT_BEFORE TRUE)
 #SiftGPU
 IF (${USE_SIFT_GPU})
 	include_directories(${CMAKE_CURRENT_BINARY_DIR} external/siftgpu/src)
@@ -90,7 +90,7 @@ QT4_WRAP_CPP(QT_MOC_HPP ${QT_MOC})
 ##############################################################################
 # Sources
 ##############################################################################
-SET(ADDITIONAL_SOURCES src/gicp-fallback.cpp src/main.cpp src/qtros.cpp  src/openni_listener.cpp src/qtcv.cpp src/flow.cpp src/node.cpp src/graph_manager.cpp src/glviewer.cpp src/globaldefinitions.cpp)
+SET(ADDITIONAL_SOURCES src/gicp-fallback.cpp src/main.cpp src/qtros.cpp  src/openni_listener.cpp src/qtcv.cpp src/flow.cpp src/node.cpp src/graph_manager.cpp src/glviewer.cpp src/parameter_server.cpp)
 
 IF (${USE_SIFT_GPU})
  	SET(ADDITIONAL_SOURCES ${ADDITIONAL_SOURCES} src/sift_gpu_feature_detector.cpp)
@@ -123,7 +123,7 @@ IF (${USE_SIFT_GPU})
 ENDIF (${USE_SIFT_GPU})
 
 IF (${USE_GICP})
- 	SET(LIBS_LINK ${LIBS_LINK} gsl gslcblas gicp ANN)
+ 	SET(LIBS_LINK ${LIBS_LINK} gicp ANN gsl gslcblas)
 ENDIF (${USE_GICP})
  
 IF (${USE_GICP})
